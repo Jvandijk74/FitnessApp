@@ -23,7 +23,7 @@ A production-ready foundation for a deterministic personal training and enduranc
    STRAVA_CLIENT_ID=...
    STRAVA_CLIENT_SECRET=...
    ```
-   You can copy `.env.example` to `.env.local` and fill in the values from your Supabase project (URL + publishable anon key) and Strava app dashboard (Client ID + generated Client Secret). Keep your real tokens out of source control—especially the Supabase service role key and Strava client secret. When using the provided Supabase project URL and keys, place them in `.env.local` only; do not commit them.
+   You can copy `.env.example` to `.env.local` and fill in the values from your Supabase project (URL + publishable anon key) and Strava app dashboard (Client ID + generated Client Secret). Keep your real tokens out of source control—especially the Supabase service role key and Strava client secret. When using the provided Supabase project URL and keys, place them in `.env.local` only; do not commit them. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in your Vercel project settings before deploying so the build can succeed; keep `SUPABASE_SERVICE_ROLE_KEY` scoped to server-only environments.
 3. Run the development server:
    ```bash
    npm run dev

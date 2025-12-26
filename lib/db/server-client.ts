@@ -3,7 +3,12 @@ import { cookies, headers } from 'next/headers';
 import { getServerSupabaseConfig } from '@/lib/config/supabase-server';
 
 export function getServerSupabase() {
-  const { url, anonKey, serviceRoleKey } = getServerSupabaseConfig();
+  const { url, anonKey, serviceRoleKey, missing } = getServerSupabaseConfig();
+
+  if (!url || (!anonKey && !serviceRoleKey)) {
+    const note = missing?.length ? `Missing: ${missing.join(', ')}` : 'Missing Supabase configuration.';
+    throw new Error(`Supabase server client could not initialize. ${note}`);
+  }
   const cookieStore = cookies();
   const headerList = headers();
   return createServerClient(url, serviceRoleKey || anonKey || '', {
