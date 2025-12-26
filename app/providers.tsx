@@ -24,7 +24,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return (
       <div className="p-4 bg-red-900/40 text-red-100 rounded-md">
         <p className="font-semibold">Supabase configuration missing</p>
-        <p className="text-sm">Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to load the app.</p>
+        <p className="text-sm">
+          Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY (or SUPABASE_URL and
+          SUPABASE_ANON_KEY) to load the app.
+        </p>
       </div>
     );
   }
