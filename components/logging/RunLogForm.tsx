@@ -26,19 +26,26 @@ export function RunLogForm({ action }: RunLogFormProps) {
   const [rpe, setRpe] = useState('');
 
   return (
-    <form className="card space-y-3" action={action}>
+    <form className="card space-y-4" action={action}>
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Log a run</h3>
-        <p className="text-xs text-white/60">Strava imports require confirmation</p>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <svg className="w-5 h-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold">Log a run</h3>
+        </div>
+        <span className="badge-primary">Running</span>
       </div>
-      <div className="grid grid-cols-2 gap-2 text-sm">
-        <label className="grid gap-1">
-          Day
+      <div className="grid grid-cols-2 gap-3">
+        <div className="form-group">
+          <label className="form-label">Day</label>
           <select
             name="day"
             value={day}
             onChange={(e) => setDay(e.target.value as TrainingDay)}
-            className="rounded border border-white/10 p-2"
+            className="form-select"
           >
             <option value="monday">Monday</option>
             <option value="tuesday">Tuesday</option>
@@ -48,39 +55,69 @@ export function RunLogForm({ action }: RunLogFormProps) {
             <option value="saturday">Saturday</option>
             <option value="sunday">Sunday</option>
           </select>
-        </label>
-        <label className="grid gap-1">
-          Distance (km)
+        </div>
+        <div className="form-group">
+          <label className="form-label">Distance (km)</label>
           <input
             name="distance_km"
+            type="number"
+            step="0.1"
             value={distance}
             onChange={(e) => setDistance(e.target.value)}
-            className="rounded border border-white/10 p-2"
+            className="form-input"
+            placeholder="5.0"
           />
-        </label>
-        <label className="grid gap-1">
-          Duration (minutes)
+        </div>
+        <div className="form-group">
+          <label className="form-label">Duration (min)</label>
           <input
             name="duration_minutes"
+            type="number"
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
-            className="rounded border border-white/10 p-2"
+            className="form-input"
+            placeholder="30"
           />
-        </label>
-        <label className="grid gap-1">
-          Avg HR
-          <input name="avg_hr" value={avgHr} onChange={(e) => setAvgHr(e.target.value)} className="rounded border border-white/10 p-2" />
-        </label>
-        <label className="grid gap-1">
-          Max HR
-          <input name="max_hr" value={maxHr} onChange={(e) => setMaxHr(e.target.value)} className="rounded border border-white/10 p-2" />
-        </label>
-        <label className="grid gap-1">
-          RPE
-          <input name="rpe" value={rpe} onChange={(e) => setRpe(e.target.value)} className="rounded border border-white/10 p-2" />
-        </label>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Avg HR (bpm)</label>
+          <input
+            name="avg_hr"
+            type="number"
+            value={avgHr}
+            onChange={(e) => setAvgHr(e.target.value)}
+            className="form-input"
+            placeholder="150"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Max HR (bpm)</label>
+          <input
+            name="max_hr"
+            type="number"
+            value={maxHr}
+            onChange={(e) => setMaxHr(e.target.value)}
+            className="form-input"
+            placeholder="180"
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">RPE (1-10)</label>
+          <input
+            name="rpe"
+            type="number"
+            min="1"
+            max="10"
+            value={rpe}
+            onChange={(e) => setRpe(e.target.value)}
+            className="form-input"
+            placeholder="7"
+          />
+        </div>
       </div>
-      <SubmitButton />
+      <div className="pt-2">
+        <SubmitButton />
+      </div>
     </form>
   );
 }

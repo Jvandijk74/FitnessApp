@@ -1,4 +1,6 @@
-import { WeeklyPlanView } from '@/components/plan/WeeklyPlan';
+import { Sidebar } from '@/components/layout/Sidebar';
+import { HealthMetrics } from '@/components/dashboard/HealthMetrics';
+import { WeeklyCarousel } from '@/components/dashboard/WeeklyCarousel';
 import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
 import { InsightCards } from '@/components/insights/InsightCards';
@@ -74,15 +76,59 @@ export default async function DashboardPage() {
     }
   ];
 
+  // Health metrics data
+  const healthMetrics = {
+    rhr: 58,
+    hrv: 65,
+    recoveryRate: 0.75,
+    readiness: profile.readinessScore
+  };
+
   return (
-    <section className="grid gap-6">
-      <WeeklyPlanView plan={plan} />
-      <div className="grid md:grid-cols-2 gap-4">
-        <RunLogForm action={saveRun} />
-        <StrengthLogForm action={saveStrength} />
-      </div>
-      <InsightCards insights={insights} />
-      <ChatPanel />
-    </section>
+    <div className="flex min-h-screen">
+      {/* Sidebar Navigation */}
+      <Sidebar />
+
+      {/* Main Content */}
+      <main className="flex-1 ml-64 p-8 space-y-6">
+        {/* Health Metrics */}
+        <HealthMetrics {...healthMetrics} />
+
+        {/* AI Coach Chat */}
+        <ChatPanel />
+
+        {/* Weekly Training Carousel */}
+        <WeeklyCarousel plan={plan} />
+
+        <div className="divider"></div>
+
+        {/* Log Workouts Section */}
+        <div className="space-y-4">
+          <div className="section-header">
+            <div>
+              <h2 className="section-title">Log Your Workouts</h2>
+              <p className="text-white/60 text-sm mt-1">Track your training progress and performance metrics</p>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-6">
+            <RunLogForm action={saveRun} />
+            <StrengthLogForm action={saveStrength} />
+          </div>
+        </div>
+
+        <div className="divider"></div>
+
+        {/* Training Insights */}
+        <div className="space-y-4">
+          <div className="section-header">
+            <div>
+              <h2 className="section-title">Training Insights</h2>
+              <p className="text-white/60 text-sm mt-1">AI-powered analysis of your performance trends</p>
+            </div>
+          </div>
+          <InsightCards insights={insights} />
+        </div>
+      </main>
+    </div>
   );
 }
