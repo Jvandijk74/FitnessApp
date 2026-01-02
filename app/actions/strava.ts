@@ -78,8 +78,8 @@ export async function syncStravaActivities(userId: string) {
       day: new Date(run.start_date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as any,
       distance_km: run.distance_km,
       duration_minutes: run.duration_minutes,
-      avg_hr: run.avg_hr,
-      max_hr: run.max_hr,
+      avg_hr: run.avg_hr ? Math.round(run.avg_hr) : undefined,
+      max_hr: run.max_hr ? Math.round(run.max_hr) : undefined,
       source: 'strava' as const
     }));
 
