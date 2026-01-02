@@ -3,13 +3,18 @@ import { getServerSupabase } from '@/lib/db/server-client';
 const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize';
 const STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token';
 
-export function buildAuthRedirectUrl(origin: string) {
+function getUserState(userId?: string | null) {
+  return userId || process.env.NEXT_PUBLIC_DEMO_USER_ID || 'demo-user';
+}
+
+export function buildAuthRedirectUrl(origin: string, userId?: string | null) {
   const params = new URLSearchParams({
     client_id: process.env.STRAVA_CLIENT_ID || '',
     redirect_uri: `${origin}/api/strava/callback`,
     response_type: 'code',
     scope: 'read,activity:read',
-    approval_prompt: 'auto'
+    approval_prompt: 'auto',
+    state: getUserState(userId)
   });
   return `${STRAVA_AUTH_URL}?${params.toString()}`;
 }
@@ -48,7 +53,7 @@ export async function saveConnection(userId: string, tokens: { access_token: str
   await supabase
     .from('strava_connections')
     .upsert({
-      user_id: userId,
+      user_id: getUserState(userId),
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token
     })
