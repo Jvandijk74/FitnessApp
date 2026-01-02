@@ -1,35 +1,10 @@
+import { getActivities } from '@/app/actions/activities';
+
+const DEMO_USER = 'demo-user';
+
 export default async function ActivityLogPage() {
-  // Mock data - in production, fetch from database
-  const activities = [
-    {
-      id: '1',
-      type: 'run',
-      date: '2026-01-02',
-      distance: 8.5,
-      duration: 42,
-      avgHR: 165,
-      rpe: 6,
-      source: 'manual',
-    },
-    {
-      id: '2',
-      type: 'strength',
-      date: '2026-01-01',
-      exercises: ['Back Squat', 'Bench Press', 'Romanian Deadlift'],
-      duration: 55,
-      rpe: 7,
-    },
-    {
-      id: '3',
-      type: 'run',
-      date: '2025-12-30',
-      distance: 15.2,
-      duration: 78,
-      avgHR: 162,
-      rpe: 7,
-      source: 'strava',
-    },
-  ];
+  // Fetch real activities from database
+  const activities = await getActivities(DEMO_USER);
 
   return (
     <div className="space-y-6">
@@ -110,25 +85,11 @@ export default async function ActivityLogPage() {
 
                     {activity.type === 'strength' && (
                       <>
-                        <span>• {activity.duration} min</span>
-                        <span>• {activity.exercises?.length} exercises</span>
-                        <span>• RPE {activity.rpe}</span>
+                        <span>• {activity.exercise}</span>
+                        <span>• {activity.sets}</span>
                       </>
                     )}
                   </div>
-
-                  {activity.type === 'strength' && activity.exercises && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {activity.exercises.map((ex, i) => (
-                        <span
-                          key={i}
-                          className="text-xs px-2 py-1 rounded bg-surface-elevated text-text-secondary"
-                        >
-                          {ex}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
 

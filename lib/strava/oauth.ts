@@ -154,3 +154,34 @@ export async function fetchRecentRuns(accessToken: string) {
       start_date: a.start_date
     }));
 }
+
+export async function fetchAthleteStats(accessToken: string, athleteId: number) {
+  try {
+    console.log('[Strava OAuth] Fetching athlete stats for athlete:', athleteId);
+
+    const res = await fetch(`https://www.strava.com/api/v3/athletes/${athleteId}/stats`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!res.ok) {
+      console.error('[Strava OAuth] Failed to fetch athlete stats:', res.status, res.statusText);
+      throw new Error('Failed to fetch Strava athlete stats');
+    }
+
+    const stats = await res.json();
+    console.log('[Strava OAuth] Athlete stats fetched successfully');
+
+    // Note: Strava API doesn't provide RHR or HRV in the stats endpoint
+    // These would need to come from Strava's premium features or external integrations
+    return {
+      recent_run_totals: stats.recent_run_totals,
+      all_run_totals: stats.all_run_totals,
+      ytd_run_totals: stats.ytd_run_totals
+    };
+  } catch (error) {
+    console.error('[Strava OAuth] Exception fetching athlete stats:', error);
+    throw error;
+  }
+}
