@@ -185,3 +185,74 @@ export async function fetchAthleteStats(accessToken: string, athleteId: number) 
     throw error;
   }
 }
+
+export async function fetchActivityDetail(accessToken: string, activityId: string) {
+  try {
+    console.log('[Strava OAuth] Fetching activity detail for activity:', activityId);
+
+    const res = await fetch(`https://www.strava.com/api/v3/activities/${activityId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!res.ok) {
+      console.error('[Strava OAuth] Failed to fetch activity detail:', res.status, res.statusText);
+      throw new Error('Failed to fetch Strava activity detail');
+    }
+
+    const activity = await res.json();
+    console.log('[Strava OAuth] Activity detail fetched successfully');
+
+    return {
+      id: activity.id,
+      name: activity.name,
+      distance: activity.distance,
+      moving_time: activity.moving_time,
+      elapsed_time: activity.elapsed_time,
+      total_elevation_gain: activity.total_elevation_gain,
+      type: activity.type,
+      start_date: activity.start_date,
+      average_speed: activity.average_speed,
+      max_speed: activity.max_speed,
+      average_heartrate: activity.average_heartrate,
+      max_heartrate: activity.max_heartrate,
+      calories: activity.calories,
+      map: activity.map?.summary_polyline,
+      splits_metric: activity.splits_metric,
+      laps: activity.laps
+    };
+  } catch (error) {
+    console.error('[Strava OAuth] Exception fetching activity detail:', error);
+    throw error;
+  }
+}
+
+export async function fetchActivityStreams(accessToken: string, activityId: string) {
+  try {
+    console.log('[Strava OAuth] Fetching activity streams for activity:', activityId);
+
+    const streamTypes = ['time', 'latlng', 'distance', 'altitude', 'heartrate', 'velocity_smooth'];
+    const res = await fetch(
+      `https://www.strava.com/api/v3/activities/${activityId}/streams?keys=${streamTypes.join(',')}&key_by_type=true`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    if (!res.ok) {
+      console.error('[Strava OAuth] Failed to fetch activity streams:', res.status, res.statusText);
+      throw new Error('Failed to fetch Strava activity streams');
+    }
+
+    const streams = await res.json();
+    console.log('[Strava OAuth] Activity streams fetched successfully');
+
+    return streams;
+  } catch (error) {
+    console.error('[Strava OAuth] Exception fetching activity streams:', error);
+    throw error;
+  }
+}

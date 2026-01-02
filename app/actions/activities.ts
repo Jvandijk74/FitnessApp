@@ -43,6 +43,7 @@ export async function getActivities(userId: string) {
         maxHR: run.max_hr,
         rpe: run.rpe,
         source: run.source || 'manual',
+        stravaActivityId: run.strava_activity_id,
         day: run.day
       })),
       ...(strengthExercises || []).map(exercise => ({

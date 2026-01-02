@@ -1,7 +1,7 @@
 'use server';
 
 import { getServerSupabase } from '@/lib/db/server-client';
-import { fetchRecentRuns } from '@/lib/strava/oauth';
+import { fetchRecentRuns, fetchActivityDetail, fetchActivityStreams } from '@/lib/strava/oauth';
 import { revalidatePath } from 'next/cache';
 
 interface StravaRun {
@@ -81,6 +81,7 @@ export async function syncStravaActivities(userId: string) {
       avg_hr: run.avg_hr ? Math.round(run.avg_hr) : undefined,
       max_hr: run.max_hr ? Math.round(run.max_hr) : undefined,
       activity_date: run.start_date,
+      strava_activity_id: run.id.toString(),
       source: 'strava' as const
     }));
 
@@ -108,6 +109,37 @@ export async function syncStravaActivities(userId: string) {
     return { count: runs.length };
   } catch (error) {
     console.error('[Strava Actions] Exception in syncStravaActivities:', error);
+    console.error('[Strava Actions] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
+}
+
+export async function getActivityDetails(userId: string, activityId: string) {
+  try {
+    console.log('[Strava Actions] Fetching activity details for:', activityId);
+
+    const connection = await getStravaConnection(userId);
+    if (!connection) {
+      throw new Error('Strava not connected');
+    }
+
+    // Fetch both activity detail and streams in parallel
+    const [detail, streams] = await Promise.all([
+      fetchActivityDetail(connection.accessToken, activityId),
+      fetchActivityStreams(connection.accessToken, activityId)
+    ]);
+
+    console.log('[Strava Actions] Activity details fetched successfully');
+
+    return {
+      detail,
+      streams
+    };
+  } catch (error) {
+    console.error('[Strava Actions] Exception in getActivityDetails:', error);
     console.error('[Strava Actions] Error details:', {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
