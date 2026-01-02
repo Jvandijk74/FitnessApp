@@ -15,17 +15,25 @@ export function buildAuthRedirectUrl(origin: string) {
 }
 
 export async function handleTokenExchange(code: string) {
+  const params = new URLSearchParams({
+    client_id: process.env.STRAVA_CLIENT_ID || '',
+    client_secret: process.env.STRAVA_CLIENT_SECRET || '',
+    code,
+    grant_type: 'authorization_code'
+  });
+
   const res = await fetch(STRAVA_TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: process.env.STRAVA_CLIENT_ID,
-      client_secret: process.env.STRAVA_CLIENT_SECRET,
-      code,
-      grant_type: 'authorization_code'
-    })
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
   });
-  if (!res.ok) throw new Error('Failed to exchange Strava code');
+
+  if (!res.ok) {
+    const errorData = await res.text();
+    console.error('Strava token exchange failed:', errorData);
+    throw new Error(`Failed to exchange Strava code: ${res.status} - ${errorData}`);
+  }
+
   const data = await res.json();
   return {
     access_token: data.access_token as string,
