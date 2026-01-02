@@ -4,9 +4,12 @@ const STRAVA_AUTH_URL = 'https://www.strava.com/oauth/authorize';
 const STRAVA_TOKEN_URL = 'https://www.strava.com/oauth/token';
 
 export function buildAuthRedirectUrl(origin: string) {
+  const redirectUri =
+    process.env.STRAVA_REDIRECT_URI || `${origin.replace(/\/$/, '')}/api/strava/callback`;
+
   const params = new URLSearchParams({
     client_id: process.env.STRAVA_CLIENT_ID || '',
-    redirect_uri: `${origin}/api/strava/callback`,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'read,activity:read',
     approval_prompt: 'auto'
