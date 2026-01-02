@@ -14,10 +14,10 @@ A production-ready foundation for a deterministic personal training and enduranc
    ```bash
    npm install
    ```
-2. Set environment variables in `.env.local`:
+2. Set environment variables in `.env.local` (or via your deployment secret manager):
    ```bash
-   NEXT_PUBLIC_SUPABASE_URL=...
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+   NEXT_PUBLIC_SUPABASE_URL=...   # or SUPABASE_URL
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=...   # or SUPABASE_ANON_KEY
    STRAVA_CLIENT_ID=...
    STRAVA_CLIENT_SECRET=...
    ```
