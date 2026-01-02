@@ -1,13 +1,14 @@
 import { StatsCard } from '@/components/stats/StatsCard';
+import { getMonthlyAnalytics, calculateHealthMetrics } from '@/app/actions/metrics';
+
+const DEMO_USER = 'demo-user';
 
 export default async function AnalyticsPage() {
-  // Mock data - in production, fetch from database
-  const weeklyData = [
-    { week: 'Week 1', distance: 35, avgHR: 162 },
-    { week: 'Week 2', distance: 38, avgHR: 165 },
-    { week: 'Week 3', distance: 42, avgHR: 163 },
-    { week: 'Week 4', distance: 45, avgHR: 167 },
-  ];
+  // Fetch real data from database
+  const analytics = await getMonthlyAnalytics(DEMO_USER);
+  const healthMetrics = await calculateHealthMetrics(DEMO_USER);
+
+  const { weeklyData, totals, insights } = analytics;
 
   return (
     <div className="space-y-6">
@@ -20,32 +21,39 @@ export default async function AnalyticsPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
-          title="Total Distance"
-          value="347 km"
+          title="Total Distance (30d)"
+          value={`${totals.distance.toFixed(1)} km`}
           icon="🏃"
-          trend={{ value: 15, isPositive: true }}
+          trend={insights.improvement > 0 ? { value: insights.improvement, isPositive: true } : undefined}
           variant="default"
         />
         <StatsCard
-          title="Total Workouts"
-          value="48"
+          title="Total Runs (30d)"
+          value={totals.runs.toString()}
           icon="💪"
-          trend={{ value: 8, isPositive: true }}
           variant="success"
         />
         <StatsCard
           title="Avg Pace"
-          value="5:12 /km"
+          value={
+            totals.avgPace > 0
+              ? `${Math.floor(totals.avgPace)}:${String(Math.round((totals.avgPace % 1) * 60)).padStart(2, '0')} /km`
+              : 'N/A'
+          }
           icon="⚡"
-          trend={{ value: 5, isPositive: true }}
           variant="info"
         />
         <StatsCard
           title="Training Load"
-          value="342"
+          value={`${healthMetrics.trainingLoad}%`}
           icon="📊"
-          trend={{ value: 3, isPositive: false }}
-          variant="warning"
+          variant={
+            healthMetrics.trainingLoad >= 70
+              ? 'success'
+              : healthMetrics.trainingLoad >= 50
+              ? 'info'
+              : 'warning'
+          }
         />
       </div>
 
@@ -94,18 +102,20 @@ export default async function AnalyticsPage() {
         <div className="grid md:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-semantic-success/10 border border-semantic-success/20">
             <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Best Week</p>
-            <p className="text-2xl font-bold text-semantic-success">45 km</p>
-            <p className="text-xs text-text-secondary mt-1">Week 4 • Personal record</p>
+            <p className="text-2xl font-bold text-semantic-success">{insights.bestWeek.toFixed(1)} km</p>
+            <p className="text-xs text-text-secondary mt-1">{insights.bestWeekName}</p>
           </div>
           <div className="p-4 rounded-lg bg-primary-500/10 border border-primary-500/20">
             <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Consistency</p>
-            <p className="text-2xl font-bold text-primary-400">87%</p>
-            <p className="text-xs text-text-secondary mt-1">Workouts completed on schedule</p>
+            <p className="text-2xl font-bold text-primary-400">{insights.consistency}%</p>
+            <p className="text-xs text-text-secondary mt-1">Weeks with at least one run</p>
           </div>
           <div className="p-4 rounded-lg bg-accent-500/10 border border-accent-500/20">
-            <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Improvement</p>
-            <p className="text-2xl font-bold text-accent-400">+15%</p>
-            <p className="text-xs text-text-secondary mt-1">Volume increase vs last month</p>
+            <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Volume Change</p>
+            <p className="text-2xl font-bold text-accent-400">
+              {insights.improvement > 0 ? '+' : ''}{insights.improvement}%
+            </p>
+            <p className="text-xs text-text-secondary mt-1">vs previous week</p>
           </div>
         </div>
       </div>

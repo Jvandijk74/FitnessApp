@@ -9,6 +9,7 @@ import { generateWeeklyPlan } from '@/lib/coach/engine';
 import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
 import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
+import { getWeeklyStats, calculateHealthMetrics, generateInsights } from '@/app/actions/metrics';
 import { TrainingDay } from '@/lib/db/types';
 
 const DEMO_USER = 'demo-user';
@@ -45,6 +46,11 @@ async function saveStrength(formData: FormData) {
 }
 
 export default async function DashboardPage() {
+  // Fetch real metrics
+  const weeklyStats = await getWeeklyStats(DEMO_USER);
+  const healthMetrics = await calculateHealthMetrics(DEMO_USER);
+  const insights = await generateInsights(DEMO_USER);
+
   const profile: AthleteProfile = {
     id: DEMO_USER,
     thresholdPace: 4.9,
@@ -54,34 +60,10 @@ export default async function DashboardPage() {
   };
 
   const plan = generateWeeklyPlan(profile, {
-    averageRunMinutes: 42,
+    averageRunMinutes: weeklyStats.totalDuration / Math.max(1, weeklyStats.totalRuns) || 42,
     longRunMinutes: 75,
     highRpeCount: 1
   });
-
-  const insights = [
-    {
-      id: 'tempo-pace',
-      title: 'Tempo pace improving at same HR',
-      detail: 'Last 3 tempo runs averaged 4:45/km at 170bpm vs 4:55/km previously.',
-      type: 'success' as const,
-      timestamp: '2 hours ago'
-    },
-    {
-      id: 'strength-rpe',
-      title: 'Strength RPE trending up → fatigue risk',
-      detail: 'Average strength RPE 8.2. Coach will cap next Friday to RPE 6.',
-      type: 'warning' as const,
-      timestamp: '5 hours ago'
-    },
-    {
-      id: 'hr-drift',
-      title: 'Long run HR drift rising',
-      detail: 'Cardiac drift 9% vs 6% last month; consider more easy volume before progressing.',
-      type: 'info' as const,
-      timestamp: '1 day ago'
-    }
-  ];
 
   // Check Strava connection status
   let stravaConnection = null;
@@ -108,32 +90,47 @@ export default async function DashboardPage() {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
-          title="Weekly Volume"
-          value="42.5 km"
+          title="Weekly Distance"
+          value={`${weeklyStats.totalDistance.toFixed(1)} km`}
           icon="🏃"
-          trend={{ value: 12, isPositive: true }}
           variant="default"
         />
         <StatsCard
-          title="Total Runs"
-          value="23"
+          title="Runs This Week"
+          value={weeklyStats.totalRuns.toString()}
           icon="📊"
-          trend={{ value: 5, isPositive: true }}
           variant="success"
         />
         <StatsCard
-          title="Avg Heart Rate"
-          value="165 bpm"
+          title="Aerobic Fitness"
+          value={`${healthMetrics.aerobicFitness}%`}
           icon="❤️"
-          trend={{ value: 2, isPositive: false }}
-          variant="info"
+          trend={
+            healthMetrics.trend === 'improving'
+              ? { value: 5, isPositive: true }
+              : healthMetrics.trend === 'declining'
+              ? { value: 5, isPositive: false }
+              : undefined
+          }
+          variant={
+            healthMetrics.aerobicFitness >= 70
+              ? 'success'
+              : healthMetrics.aerobicFitness >= 50
+              ? 'info'
+              : 'warning'
+          }
         />
         <StatsCard
-          title="Readiness"
-          value="62%"
+          title="Training Load"
+          value={`${healthMetrics.trainingLoad}%`}
           icon="⚡"
-          trend={{ value: 8, isPositive: false }}
-          variant="warning"
+          variant={
+            healthMetrics.trainingLoad >= 70
+              ? 'success'
+              : healthMetrics.trainingLoad >= 50
+              ? 'info'
+              : 'warning'
+          }
         />
       </div>
 
