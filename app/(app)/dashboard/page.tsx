@@ -1,11 +1,14 @@
-import { WeeklyPlanView } from '@/components/plan/WeeklyPlan';
+import { TrainingTimeline } from '@/components/plan/TrainingTimeline';
 import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
-import { InsightCards } from '@/components/insights/InsightCards';
+import { InsightFeed } from '@/components/insights/InsightFeed';
 import { ChatPanel } from '@/components/chat/ChatPanel';
+import { StravaConnect } from '@/components/integrations/StravaConnect';
+import { StatsCard } from '@/components/stats/StatsCard';
 import { generateWeeklyPlan } from '@/lib/coach/engine';
 import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
+import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
 import { TrainingDay } from '@/lib/db/types';
 
 const DEMO_USER = 'demo-user';
@@ -60,29 +63,104 @@ export default async function DashboardPage() {
     {
       id: 'tempo-pace',
       title: 'Tempo pace improving at same HR',
-      detail: 'Last 3 tempo runs averaged 4:45/km at 170bpm vs 4:55/km previously.'
+      detail: 'Last 3 tempo runs averaged 4:45/km at 170bpm vs 4:55/km previously.',
+      type: 'success' as const,
+      timestamp: '2 hours ago'
     },
     {
       id: 'strength-rpe',
       title: 'Strength RPE trending up → fatigue risk',
-      detail: 'Average strength RPE 8.2. Coach will cap next Friday to RPE 6.'
+      detail: 'Average strength RPE 8.2. Coach will cap next Friday to RPE 6.',
+      type: 'warning' as const,
+      timestamp: '5 hours ago'
     },
     {
       id: 'hr-drift',
       title: 'Long run HR drift rising',
-      detail: 'Cardiac drift 9% vs 6% last month; consider more easy volume before progressing.'
+      detail: 'Cardiac drift 9% vs 6% last month; consider more easy volume before progressing.',
+      type: 'info' as const,
+      timestamp: '1 day ago'
     }
   ];
 
+  // Check Strava connection status
+  const stravaConnection = await getStravaConnection(DEMO_USER);
+
   return (
-    <section className="grid gap-6">
-      <WeeklyPlanView plan={plan} />
+    <section className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-text-primary mb-2">Dashboard</h1>
+        <p className="text-text-secondary">Your training overview and weekly plan</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title="Weekly Volume"
+          value="42.5 km"
+          icon="🏃"
+          trend={{ value: 12, isPositive: true }}
+          variant="default"
+        />
+        <StatsCard
+          title="Total Runs"
+          value="23"
+          icon="📊"
+          trend={{ value: 5, isPositive: true }}
+          variant="success"
+        />
+        <StatsCard
+          title="Avg Heart Rate"
+          value="165 bpm"
+          icon="❤️"
+          trend={{ value: 2, isPositive: false }}
+          variant="info"
+        />
+        <StatsCard
+          title="Readiness"
+          value="62%"
+          icon="⚡"
+          trend={{ value: 8, isPositive: false }}
+          variant="warning"
+        />
+      </div>
+
+      {/* Strava Integration */}
+      <StravaConnectWrapper
+        isConnected={!!stravaConnection}
+        athleteId={stravaConnection?.athleteId}
+      />
+
+      {/* Weekly Training Timeline */}
+      <TrainingTimeline plan={plan} />
+
+      {/* Insights Feed */}
+      <InsightFeed insights={insights} />
+
+      {/* Quick Log Forms */}
       <div className="grid md:grid-cols-2 gap-4">
         <RunLogForm action={saveRun} />
         <StrengthLogForm action={saveStrength} />
       </div>
-      <InsightCards insights={insights} />
+
+      {/* Chat Panel */}
       <ChatPanel />
     </section>
   );
+}
+
+async function syncActivities() {
+  'use server';
+  await syncStravaActivities(DEMO_USER);
+}
+
+function StravaConnectWrapper({
+  isConnected,
+  athleteId
+}: {
+  isConnected: boolean;
+  athleteId?: number;
+}) {
+  return <StravaConnect isConnected={isConnected} athleteId={athleteId} onSync={syncActivities} />;
 }
