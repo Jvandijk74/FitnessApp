@@ -1,7 +1,7 @@
-import { WeeklyPlanView } from '@/components/plan/WeeklyPlan';
+import { TrainingTimeline } from '@/components/plan/TrainingTimeline';
 import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
-import { InsightCards } from '@/components/insights/InsightCards';
+import { InsightFeed } from '@/components/insights/InsightFeed';
 import { ChatPanel } from '@/components/chat/ChatPanel';
 import { StravaConnect } from '@/components/integrations/StravaConnect';
 import { StatsCard } from '@/components/stats/StatsCard';
@@ -63,17 +63,23 @@ export default async function DashboardPage() {
     {
       id: 'tempo-pace',
       title: 'Tempo pace improving at same HR',
-      detail: 'Last 3 tempo runs averaged 4:45/km at 170bpm vs 4:55/km previously.'
+      detail: 'Last 3 tempo runs averaged 4:45/km at 170bpm vs 4:55/km previously.',
+      type: 'success' as const,
+      timestamp: '2 hours ago'
     },
     {
       id: 'strength-rpe',
       title: 'Strength RPE trending up → fatigue risk',
-      detail: 'Average strength RPE 8.2. Coach will cap next Friday to RPE 6.'
+      detail: 'Average strength RPE 8.2. Coach will cap next Friday to RPE 6.',
+      type: 'warning' as const,
+      timestamp: '5 hours ago'
     },
     {
       id: 'hr-drift',
       title: 'Long run HR drift rising',
-      detail: 'Cardiac drift 9% vs 6% last month; consider more easy volume before progressing.'
+      detail: 'Cardiac drift 9% vs 6% last month; consider more easy volume before progressing.',
+      type: 'info' as const,
+      timestamp: '1 day ago'
     }
   ];
 
@@ -126,17 +132,17 @@ export default async function DashboardPage() {
         athleteId={stravaConnection?.athleteId}
       />
 
-      {/* Weekly Plan */}
-      <WeeklyPlanView plan={plan} />
+      {/* Weekly Training Timeline */}
+      <TrainingTimeline plan={plan} />
+
+      {/* Insights Feed */}
+      <InsightFeed insights={insights} />
 
       {/* Quick Log Forms */}
       <div className="grid md:grid-cols-2 gap-4">
         <RunLogForm action={saveRun} />
         <StrengthLogForm action={saveStrength} />
       </div>
-
-      {/* Insights */}
-      <InsightCards insights={insights} />
 
       {/* Chat Panel */}
       <ChatPanel />
