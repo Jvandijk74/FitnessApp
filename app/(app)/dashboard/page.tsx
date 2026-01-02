@@ -3,9 +3,11 @@ import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
 import { InsightCards } from '@/components/insights/InsightCards';
 import { ChatPanel } from '@/components/chat/ChatPanel';
+import { StravaConnect } from '@/components/integrations/StravaConnect';
 import { generateWeeklyPlan } from '@/lib/coach/engine';
 import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
+import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
 import { TrainingDay } from '@/lib/db/types';
 
 const DEMO_USER = 'demo-user';
@@ -74,9 +76,16 @@ export default async function DashboardPage() {
     }
   ];
 
+  // Check Strava connection status
+  const stravaConnection = await getStravaConnection(DEMO_USER);
+
   return (
     <section className="grid gap-6">
       <WeeklyPlanView plan={plan} />
+      <StravaConnectWrapper
+        isConnected={!!stravaConnection}
+        athleteId={stravaConnection?.athleteId}
+      />
       <div className="grid md:grid-cols-2 gap-4">
         <RunLogForm action={saveRun} />
         <StrengthLogForm action={saveStrength} />
@@ -85,4 +94,19 @@ export default async function DashboardPage() {
       <ChatPanel />
     </section>
   );
+}
+
+async function syncActivities() {
+  'use server';
+  await syncStravaActivities(DEMO_USER);
+}
+
+function StravaConnectWrapper({
+  isConnected,
+  athleteId
+}: {
+  isConnected: boolean;
+  athleteId?: number;
+}) {
+  return <StravaConnect isConnected={isConnected} athleteId={athleteId} onSync={syncActivities} />;
 }
