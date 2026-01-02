@@ -105,16 +105,34 @@ export async function handleTokenExchange(code: string, redirectUri: string) {
   }
 }
 
-export async function saveConnection(userId: string, tokens: { access_token: string; refresh_token: string }) {
+export async function saveConnection(
+  userId: string,
+  tokens: {
+    access_token: string;
+    refresh_token: string;
+    athlete?: { id: number };
+  }
+) {
   const supabase = await getServerSupabase();
-  await supabase
+
+  console.log('[Strava OAuth] Saving connection for user:', userId);
+  console.log('[Strava OAuth] Athlete ID:', tokens.athlete?.id);
+
+  const { error } = await supabase
     .from('strava_connections')
     .upsert({
       user_id: userId,
       access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token
-    })
-    .throwOnError();
+      refresh_token: tokens.refresh_token,
+      athlete_id: tokens.athlete?.id || null
+    });
+
+  if (error) {
+    console.error('[Strava OAuth] Error saving connection:', error);
+    throw error;
+  }
+
+  console.log('[Strava OAuth] Connection saved successfully!');
 }
 
 export async function fetchRecentRuns(accessToken: string) {
