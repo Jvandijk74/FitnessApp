@@ -84,7 +84,18 @@ export default async function DashboardPage() {
   ];
 
   // Check Strava connection status
-  const stravaConnection = await getStravaConnection(DEMO_USER);
+  let stravaConnection = null;
+  try {
+    console.log('[Dashboard] Fetching Strava connection...');
+    stravaConnection = await getStravaConnection(DEMO_USER);
+    console.log('[Dashboard] Strava connection status:', stravaConnection ? 'Connected' : 'Not connected');
+  } catch (error) {
+    console.error('[Dashboard] Error fetching Strava connection:', error);
+    console.error('[Dashboard] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+  }
 
   return (
     <section className="space-y-6">
@@ -152,7 +163,19 @@ export default async function DashboardPage() {
 
 async function syncActivities() {
   'use server';
-  await syncStravaActivities(DEMO_USER);
+  try {
+    console.log('[Dashboard] syncActivities action called');
+    const result = await syncStravaActivities(DEMO_USER);
+    console.log('[Dashboard] syncActivities completed successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('[Dashboard] syncActivities failed:', error);
+    console.error('[Dashboard] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
 }
 
 function StravaConnectWrapper({

@@ -51,10 +51,18 @@ export function StravaConnect({ isConnected, athleteId, onSync }: StravaConnecti
   const handleSync = async () => {
     if (!onSync) return;
     setSyncing(true);
+    setError(null);
     try {
+      console.log('[StravaConnect] Starting sync...');
       await onSync();
+      console.log('[StravaConnect] Sync completed successfully');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 5000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sync activities');
+      console.error('[StravaConnect] Sync failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sync activities';
+      console.error('[StravaConnect] Error message:', errorMessage);
+      setError(errorMessage);
     } finally {
       setSyncing(false);
     }
