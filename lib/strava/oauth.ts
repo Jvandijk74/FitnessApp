@@ -14,12 +14,13 @@ export function buildAuthRedirectUrl(origin: string) {
   return `${STRAVA_AUTH_URL}?${params.toString()}`;
 }
 
-export async function handleTokenExchange(code: string) {
+export async function handleTokenExchange(code: string, redirectUri: string) {
   const params = new URLSearchParams({
     client_id: process.env.STRAVA_CLIENT_ID || '',
     client_secret: process.env.STRAVA_CLIENT_SECRET || '',
     code,
-    grant_type: 'authorization_code'
+    grant_type: 'authorization_code',
+    redirect_uri: redirectUri
   });
 
   const res = await fetch(STRAVA_TOKEN_URL, {
