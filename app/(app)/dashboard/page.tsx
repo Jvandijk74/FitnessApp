@@ -75,14 +75,63 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <section className="grid gap-6">
-      <WeeklyPlanView plan={plan} />
-      <div className="grid md:grid-cols-2 gap-4">
-        <RunLogForm action={saveRun} />
-        <StrengthLogForm action={saveStrength} />
+    <section className="grid gap-8">
+      {/* Weekly Training Plan */}
+      <div className="space-y-4">
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">Your Weekly Plan</h2>
+            <p className="text-white/60 text-sm mt-1">Personalized training schedule based on your readiness</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="badge-success">Active</span>
+          </div>
+        </div>
+        <WeeklyPlanView plan={plan} />
       </div>
-      <InsightCards insights={insights} />
-      <ChatPanel />
+
+      <div className="divider"></div>
+
+      {/* Log Workouts Section */}
+      <div className="space-y-4">
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">Log Your Workouts</h2>
+            <p className="text-white/60 text-sm mt-1">Track your training progress and performance metrics</p>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6">
+          <RunLogForm action={saveRun} />
+          <StrengthLogForm action={saveStrength} />
+        </div>
+      </div>
+
+      <div className="divider"></div>
+
+      {/* Training Insights */}
+      <div className="space-y-4">
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">Training Insights</h2>
+            <p className="text-white/60 text-sm mt-1">AI-powered analysis of your performance trends</p>
+          </div>
+        </div>
+        <InsightCards insights={insights} />
+      </div>
+
+      <div className="divider"></div>
+
+      {/* AI Coach */}
+      <div className="space-y-4">
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">AI Coach</h2>
+            <p className="text-white/60 text-sm mt-1">Get personalized guidance and explanations</p>
+          </div>
+          <span className="badge-primary">Beta</span>
+        </div>
+        <ChatPanel />
+      </div>
     </section>
   );
 }
