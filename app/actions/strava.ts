@@ -4,8 +4,17 @@ import { getServerSupabase } from '@/lib/db/server-client';
 import { fetchRecentRuns } from '@/lib/strava/oauth';
 import { revalidatePath } from 'next/cache';
 
+interface StravaRun {
+  id: number;
+  distance_km: number;
+  duration_minutes: number;
+  avg_hr?: number;
+  max_hr?: number;
+  start_date: string;
+}
+
 export async function getStravaConnection(userId: string) {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const { data, error } = await supabase
     .from('strava_connections')
     .select('access_token, refresh_token, athlete_id')
@@ -30,18 +39,18 @@ export async function syncStravaActivities(userId: string) {
     throw new Error('Strava not connected');
   }
 
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const runs = await fetchRecentRuns(connection.accessToken);
 
   // Import runs to the database
-  const runLogs = runs.map((run) => ({
+  const runLogs = runs.map((run: StravaRun) => ({
     user_id: userId,
     day: new Date(run.start_date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as any,
     distance_km: run.distance_km,
     duration_minutes: run.duration_minutes,
     avg_hr: run.avg_hr,
     max_hr: run.max_hr,
-    source: 'strava'
+    source: 'strava' as const
   }));
 
   if (runLogs.length > 0) {

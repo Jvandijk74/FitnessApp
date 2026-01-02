@@ -35,7 +35,7 @@ export async function handleTokenExchange(code: string) {
 }
 
 export async function saveConnection(userId: string, tokens: { access_token: string; refresh_token: string }) {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   await supabase
     .from('strava_connections')
     .upsert({
