@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 interface StravaConnectionProps {
   isConnected: boolean;
@@ -10,8 +11,40 @@ interface StravaConnectionProps {
 
 export function StravaConnect({ isConnected, athleteId, onSync }: StravaConnectionProps) {
   const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Check for error in URL params
+    const stravaError = searchParams.get('strava_error');
+    if (stravaError) {
+      setError(decodeURIComponent(stravaError));
+      // Clear the URL param after 10 seconds
+      setTimeout(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('strava_error');
+        window.history.replaceState({}, '', url.toString());
+        setError(null);
+      }, 10000);
+    }
+
+    // Check for success in URL params
+    const connected = searchParams.get('connected');
+    if (connected === 'strava') {
+      setSuccess(true);
+      // Clear the URL param after 5 seconds
+      setTimeout(() => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('connected');
+        window.history.replaceState({}, '', url.toString());
+        setSuccess(false);
+      }, 5000);
+    }
+  }, [searchParams]);
 
   const handleConnect = () => {
+    setError(null);
     window.location.href = '/api/strava/auth';
   };
 
@@ -20,9 +53,18 @@ export function StravaConnect({ isConnected, athleteId, onSync }: StravaConnecti
     setSyncing(true);
     try {
       await onSync();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sync activities');
     } finally {
       setSyncing(false);
     }
+  };
+
+  const handleDismissError = () => {
+    setError(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('strava_error');
+    window.history.replaceState({}, '', url.toString());
   };
 
   return (
@@ -33,8 +75,8 @@ export function StravaConnect({ isConnected, athleteId, onSync }: StravaConnecti
             <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169" fill="#FC4C02"/>
           </svg>
           <div>
-            <h3 className="text-lg font-semibold text-white">Strava Integration</h3>
-            <p className="text-sm text-gray-400">
+            <h3 className="text-lg font-semibold text-text-primary">Strava Integration</h3>
+            <p className="text-sm text-text-tertiary">
               {isConnected
                 ? `Connected • Athlete ID: ${athleteId}`
                 : 'Connect your Strava account to sync activities'}
@@ -43,13 +85,55 @@ export function StravaConnect({ isConnected, athleteId, onSync }: StravaConnecti
         </div>
         {isConnected ? (
           <span className="flex h-3 w-3 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-semantic-success opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-semantic-success"></span>
           </span>
         ) : (
-          <span className="h-3 w-3 rounded-full bg-gray-500"></span>
+          <span className="h-3 w-3 rounded-full bg-surface-elevated"></span>
         )}
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-4 bg-semantic-error/10 border border-semantic-error/30 rounded-lg">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-semantic-error mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-semantic-error mb-1">Connection Failed</p>
+                <p className="text-sm text-semantic-error/90">{error}</p>
+                <p className="text-xs text-text-tertiary mt-2">
+                  Please check your Strava app settings and ensure the redirect URI is correct.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleDismissError}
+              className="text-semantic-error/60 hover:text-semantic-error transition"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <div className="mb-4 p-3 bg-semantic-success/10 border border-semantic-success/20 rounded-lg">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-semantic-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-sm text-semantic-success">
+              Successfully connected to Strava!
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3">
         {!isConnected ? (
@@ -89,9 +173,9 @@ export function StravaConnect({ isConnected, athleteId, onSync }: StravaConnecti
         )}
       </div>
 
-      {isConnected && (
-        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-          <p className="text-sm text-green-400">
+      {isConnected && !success && (
+        <div className="mt-4 p-3 bg-semantic-success/10 border border-semantic-success/20 rounded-lg">
+          <p className="text-sm text-semantic-success">
             Your Strava account is connected. Click "Sync Activities" to import your recent runs.
           </p>
         </div>
