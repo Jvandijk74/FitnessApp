@@ -10,6 +10,7 @@ import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
 import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
 import { getWeeklyStats, calculateHealthMetrics, generateInsights } from '@/app/actions/metrics';
+import { assessInjuryRisk } from '@/app/actions/training-plan';
 import { TrainingDay } from '@/lib/db/types';
 
 const DEMO_USER = 'demo-user';
@@ -50,6 +51,7 @@ export default async function DashboardPage() {
   const weeklyStats = await getWeeklyStats(DEMO_USER);
   const healthMetrics = await calculateHealthMetrics(DEMO_USER);
   const insights = await generateInsights(DEMO_USER);
+  const injuryRisk = await assessInjuryRisk(DEMO_USER);
 
   const profile: AthleteProfile = {
     id: DEMO_USER,
@@ -88,7 +90,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard
           title="Weekly Distance"
           value={`${weeklyStats.totalDistance.toFixed(1)} km`}
@@ -132,6 +134,18 @@ export default async function DashboardPage() {
               : 'warning'
           }
         />
+        <StatsCard
+          title="Injury Risk"
+          value={injuryRisk.riskLevel.charAt(0).toUpperCase() + injuryRisk.riskLevel.slice(1)}
+          icon="🚨"
+          variant={
+            injuryRisk.riskLevel === 'low'
+              ? 'success'
+              : injuryRisk.riskLevel === 'moderate'
+              ? 'warning'
+              : 'default'
+          }
+        />
       </div>
 
       {/* Strava Integration */}
@@ -144,7 +158,23 @@ export default async function DashboardPage() {
       <TrainingTimeline plan={plan} />
 
       {/* Insights Feed */}
-      <InsightFeed insights={insights} />
+      <InsightFeed
+        insights={[
+          ...insights,
+          // Add injury risk insights if present
+          ...(injuryRisk.riskLevel !== 'low' && injuryRisk.riskFactors.length > 0
+            ? [
+                {
+                  id: 'injury-risk',
+                  title: `${injuryRisk.riskLevel === 'high' ? '⚠️ High' : 'Moderate'} Injury Risk Detected`,
+                  detail: injuryRisk.riskFactors.join('. ') + '.',
+                  type: (injuryRisk.riskLevel === 'high' ? 'warning' : 'info') as const,
+                  timestamp: 'Just now',
+                },
+              ]
+            : []),
+        ]}
+      />
 
       {/* Quick Log Forms */}
       <div className="grid md:grid-cols-2 gap-4">
