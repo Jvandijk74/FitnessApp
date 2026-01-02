@@ -80,6 +80,7 @@ export async function syncStravaActivities(userId: string) {
       duration_minutes: run.duration_minutes,
       avg_hr: run.avg_hr ? Math.round(run.avg_hr) : undefined,
       max_hr: run.max_hr ? Math.round(run.max_hr) : undefined,
+      activity_date: run.start_date,
       source: 'strava' as const
     }));
 

@@ -76,10 +76,10 @@ export default async function ActivityLogPage() {
 
                     {activity.type === 'run' && (
                       <>
-                        <span>• {activity.distance} km</span>
+                        <span>• {activity.distance?.toFixed(1)} km</span>
                         <span>• {activity.duration} min</span>
                         {activity.avgHR && <span>• {activity.avgHR} bpm avg</span>}
-                        <span>• RPE {activity.rpe}</span>
+                        {activity.rpe && <span>• RPE {activity.rpe}</span>}
                       </>
                     )}
 

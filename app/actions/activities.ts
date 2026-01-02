@@ -36,7 +36,7 @@ export async function getActivities(userId: string) {
       ...(runs || []).map(run => ({
         id: run.id,
         type: 'run' as const,
-        date: run.created_at,
+        date: run.activity_date || run.created_at,
         distance: run.distance_km,
         duration: run.duration_minutes,
         avgHR: run.avg_hr,
@@ -48,7 +48,7 @@ export async function getActivities(userId: string) {
       ...(strengthExercises || []).map(exercise => ({
         id: exercise.id,
         type: 'strength' as const,
-        date: exercise.created_at,
+        date: exercise.activity_date || exercise.created_at,
         exercise: exercise.name,
         sets: exercise.sets,
         day: exercise.day
