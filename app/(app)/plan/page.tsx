@@ -6,9 +6,13 @@ import { TrainingDay } from '@/lib/db/types';
 interface Exercise {
   name: string;
   targetSets: string;
+  targetReps: string;
   tempo: string;
   rest: string;
-  targetRpe: string;
+  targetRpe?: string;
+  targetRir?: string;
+  notes?: string;
+  optional?: boolean;
 }
 
 interface LoggedSet {
@@ -34,36 +38,252 @@ interface DayWorkout {
 const WEEK_WORKOUTS: DayWorkout[] = [
   {
     day: 'monday',
-    type: 'run',
-    run: { duration: 43, intensity: 'easy', targetRpe: 6 },
-  },
-  {
-    day: 'tuesday',
     type: 'strength',
     exercises: [
-      { name: 'Back Squat', targetSets: '4×6-8', tempo: '3-1-1', rest: '120s', targetRpe: '7' },
-      { name: 'Bench Press', targetSets: '3×8-10', tempo: '2-1-1', rest: '90s', targetRpe: '7' },
-      { name: 'Romanian Deadlift', targetSets: '3×8-10', tempo: '3-1-1', rest: '120s', targetRpe: '7' },
+      {
+        name: 'Hack squat / Goblet squat / Belt squat',
+        targetSets: '4',
+        targetReps: '6-8',
+        tempo: '3-1-1-0',
+        rest: '2-3 min',
+        targetRpe: '7-8',
+        notes: 'Strength/Mechanical Tension'
+      },
+      {
+        name: 'Romanian Deadlift',
+        targetSets: '3',
+        targetReps: '6-8',
+        tempo: '4-0-1-0',
+        rest: '2-3 min',
+        targetRpe: '7-8'
+      },
+      {
+        name: 'Incline Dumbbell Press',
+        targetSets: '4',
+        targetReps: '8',
+        tempo: '3-0-1-0',
+        rest: '2-3 min',
+        targetRir: '1-2'
+      },
+      {
+        name: 'Chest-Supported Row',
+        targetSets: '3',
+        targetReps: '8-10',
+        tempo: '2-1-1-1',
+        rest: '90 sec',
+        targetRir: '1-2'
+      },
+      {
+        name: 'Seated Dumbbell Shoulder Press',
+        targetSets: '3',
+        targetReps: '8-10',
+        tempo: '3-0-1-0',
+        rest: '90 sec',
+        targetRir: '1-2'
+      },
+      {
+        name: 'Abdominal crunch',
+        targetSets: '3',
+        targetReps: '10-12',
+        tempo: '3-1-1-0',
+        rest: '60 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Oblique woodchopper',
+        targetSets: '3',
+        targetReps: '10-12',
+        tempo: '3-1-1-0',
+        rest: '60 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Weighted Reverse Crunch',
+        targetSets: '2-3',
+        targetReps: '8-10',
+        tempo: '3-1-1-1',
+        rest: '60 sec',
+        targetRpe: '8',
+        optional: true
+      },
     ],
   },
   {
+    day: 'tuesday',
+    type: 'rest',
+  },
+  {
     day: 'wednesday',
-    type: 'run',
-    run: { duration: 53, intensity: 'tempo', targetRpe: 7 },
+    type: 'rest',
   },
   {
     day: 'thursday',
     type: 'strength',
     exercises: [
-      { name: 'Back Squat', targetSets: '4×6-8', tempo: '3-1-1', rest: '120s', targetRpe: '7' },
-      { name: 'Bench Press', targetSets: '3×8-10', tempo: '2-1-1', rest: '90s', targetRpe: '7' },
-      { name: 'Romanian Deadlift', targetSets: '3×8-10', tempo: '3-1-1', rest: '120s', targetRpe: '7' },
+      {
+        name: 'Split Squat (long stance)',
+        targetSets: '2',
+        targetReps: '8/side',
+        tempo: '3-1-1-0',
+        rest: '2-3 min',
+        targetRpe: '6-7',
+        notes: 'Post Tempo/Maintenance'
+      },
+      {
+        name: 'Romanian Deadlift (light)',
+        targetSets: '2',
+        targetReps: '8-10',
+        tempo: '4-0-1-0',
+        rest: '2 min',
+        targetRpe: '6'
+      },
+      {
+        name: 'Lat Pulldown',
+        targetSets: '3',
+        targetReps: '10-12',
+        tempo: '2-1-2-1',
+        rest: '90 sec',
+        targetRir: '1-2'
+      },
+      {
+        name: 'Seated Dumbbell Shoulder Press',
+        targetSets: '3',
+        targetReps: '10',
+        tempo: '3-0-1-1',
+        rest: '90 sec',
+        targetRpe: '7'
+      },
+      {
+        name: 'Cable Chest Fly',
+        targetSets: '2-3',
+        targetReps: '12-15',
+        tempo: '3-1-2-1',
+        rest: '75 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Cable Crunch',
+        targetSets: '3',
+        targetReps: '10-12',
+        tempo: '3-1-1-0',
+        rest: '60 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Cable Woodchopper',
+        targetSets: '2',
+        targetReps: '10/side',
+        tempo: '2-0-2-0',
+        rest: '45-60 sec',
+        targetRpe: '7-8'
+      },
+      {
+        name: 'Reverse Crunch',
+        targetSets: '2',
+        targetReps: '10',
+        tempo: '3-1-1-1',
+        rest: '60 sec',
+        targetRpe: '7-8'
+      },
     ],
   },
   {
     day: 'friday',
-    type: 'run',
-    run: { duration: 30, intensity: 'easy', targetRpe: 5 },
+    type: 'strength',
+    exercises: [
+      {
+        name: 'Hack squat / Pendulum / Belt squat',
+        targetSets: '3',
+        targetReps: '10-15',
+        tempo: '3-0-2-0',
+        rest: '90-120 sec',
+        targetRpe: '8-9',
+        notes: 'Hypertrophy/Pump'
+      },
+      {
+        name: 'Leg Press',
+        targetSets: '3',
+        targetReps: '15',
+        tempo: '3-1-2-0',
+        rest: '90 sec',
+        targetRpe: '7-8'
+      },
+      {
+        name: 'Seated Leg Curl',
+        targetSets: '4',
+        targetReps: '10-12',
+        tempo: '3-1-1-1',
+        rest: '75-90 sec',
+        targetRir: '0-1',
+        notes: 'Last 2 sets'
+      },
+      {
+        name: 'Hip Thrust',
+        targetSets: '3',
+        targetReps: '10-12',
+        tempo: '2-1-1-2',
+        rest: '90 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Machine Chest Press',
+        targetSets: '3',
+        targetReps: '12-15',
+        tempo: '2-0-2-0',
+        rest: '75 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Seated Row',
+        targetSets: '3',
+        targetReps: '12-15',
+        tempo: '2-1-2-1',
+        rest: '90 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Lateral Raises',
+        targetSets: '4',
+        targetReps: '15-20',
+        tempo: '2-0-2-0',
+        rest: '45-60 sec',
+        targetRpe: '8'
+      },
+      {
+        name: 'Cable Curl',
+        targetSets: '3',
+        targetReps: '12-15',
+        tempo: '2-0-2-1',
+        rest: '60 sec',
+        targetRir: '0-1',
+        notes: 'Last set'
+      },
+      {
+        name: 'Rope Pushdown',
+        targetSets: '3',
+        targetReps: '12-15',
+        tempo: '2-0-2-1',
+        rest: '60 sec',
+        targetRir: '0-1',
+        notes: 'Last set'
+      },
+      {
+        name: 'Hanging Knee Raise',
+        targetSets: '3',
+        targetReps: '12-15',
+        tempo: '2-1-2-1',
+        rest: '60 sec',
+        targetRpe: '7-8'
+      },
+      {
+        name: 'Cable Crunch (light)',
+        targetSets: '2',
+        targetReps: '15',
+        tempo: '2-1-2-0',
+        rest: '60 sec',
+        targetRpe: '7'
+      },
+    ],
   },
   {
     day: 'saturday',
@@ -71,8 +291,7 @@ const WEEK_WORKOUTS: DayWorkout[] = [
   },
   {
     day: 'sunday',
-    type: 'run',
-    run: { duration: 75, intensity: 'long', targetRpe: 6 },
+    type: 'rest',
   },
 ];
 
@@ -145,7 +364,12 @@ function DayCard({ workout }: { workout: DayWorkout }) {
             <h3 className="font-semibold text-text-primary">{dayLabels[workout.day]}</h3>
             <p className="text-sm text-text-secondary">
               {workout.type === 'run' && `${workout.run?.duration} min • ${workout.run?.intensity}`}
-              {workout.type === 'strength' && `${workout.exercises?.length} exercises`}
+              {workout.type === 'strength' && (
+                <>
+                  {workout.exercises?.length} exercises
+                  {workout.exercises && workout.exercises[0]?.notes && ` • ${workout.exercises[0].notes}`}
+                </>
+              )}
               {workout.type === 'rest' && 'Rest day'}
             </p>
           </div>
@@ -187,14 +411,30 @@ function DayCard({ workout }: { workout: DayWorkout }) {
                 <div key={exIndex} className="border border-surface-elevated rounded-lg p-4">
                   {/* Exercise Header */}
                   <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 className="font-semibold text-text-primary">{exercise.name}</h4>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-text-primary">{exercise.name}</h4>
+                        {exercise.optional && (
+                          <span className="text-xs px-2 py-0.5 rounded bg-surface-elevated text-text-tertiary border border-surface">
+                            Optional
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-text-tertiary mt-1">
-                        Target: {exercise.targetSets} • Tempo {exercise.tempo} • Rest {exercise.rest} • RPE {exercise.targetRpe}
+                        Target: {exercise.targetSets} sets × {exercise.targetReps} reps
+                        {' • '}Tempo {exercise.tempo}
+                        {' • '}Rest {exercise.rest}
+                        {exercise.targetRpe && ` • RPE ${exercise.targetRpe}`}
+                        {exercise.targetRir && ` • RIR ${exercise.targetRir}`}
                       </p>
+                      {exercise.notes && (
+                        <p className="text-xs text-primary-400 mt-1">
+                          {exercise.notes}
+                        </p>
+                      )}
                     </div>
                     {loggedSets[exercise.name] && loggedSets[exercise.name].length > 0 && (
-                      <div className="text-right">
+                      <div className="text-right ml-3">
                         <p className="text-xs text-text-tertiary">Volume</p>
                         <p className="text-sm font-bold text-accent-400">
                           {calculateVolume(loggedSets[exercise.name])} kg
@@ -278,7 +518,10 @@ function DayCard({ workout }: { workout: DayWorkout }) {
 
           {workout.type === 'rest' && (
             <div className="p-4 rounded-lg bg-surface-elevated text-center">
-              <p className="text-text-secondary">Active recovery • Mobility work • Light stretching</p>
+              <p className="text-text-secondary">Rest & Recovery</p>
+              <p className="text-sm text-text-tertiary mt-2">
+                Focus on recovery • Mobility work • Light stretching • Proper nutrition
+              </p>
             </div>
           )}
         </div>
@@ -299,16 +542,19 @@ export default function TrainingPlanPage() {
       {/* Weekly Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="card">
-          <p className="text-sm text-text-tertiary mb-1">Total Workouts</p>
-          <p className="text-2xl font-bold text-text-primary">6 sessions</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-text-tertiary mb-1">Running Volume</p>
-          <p className="text-2xl font-bold text-primary-400">4h 21min</p>
-        </div>
-        <div className="card">
           <p className="text-sm text-text-tertiary mb-1">Strength Sessions</p>
-          <p className="text-2xl font-bold text-accent-400">2 days</p>
+          <p className="text-2xl font-bold text-accent-400">3 days</p>
+          <p className="text-xs text-text-tertiary mt-1">Mon • Thu • Fri</p>
+        </div>
+        <div className="card">
+          <p className="text-sm text-text-tertiary mb-1">Total Exercises</p>
+          <p className="text-2xl font-bold text-text-primary">27 exercises</p>
+          <p className="text-xs text-text-tertiary mt-1">8 + 8 + 11 per week</p>
+        </div>
+        <div className="card">
+          <p className="text-sm text-text-tertiary mb-1">Training Focus</p>
+          <p className="text-2xl font-bold text-primary-400">Full Body</p>
+          <p className="text-xs text-text-tertiary mt-1">Progressive overload</p>
         </div>
       </div>
 
