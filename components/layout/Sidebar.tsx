@@ -12,9 +12,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊' },
   { name: 'Training Plan', href: '/plan', icon: '📅' },
+  { name: 'AI Coach', href: '/coach', icon: '🤖' },
   { name: 'Activity Log', href: '/log', icon: '📝' },
   { name: 'Analytics', href: '/analytics', icon: '📈' },
-  { name: 'Integrations', href: '/integrations', icon: '🔗' },
   { name: 'Settings', href: '/settings', icon: '⚙️' },
 ];
 

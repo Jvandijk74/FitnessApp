@@ -2,7 +2,7 @@ import { TrainingTimeline } from '@/components/plan/TrainingTimeline';
 import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
 import { InsightFeed } from '@/components/insights/InsightFeed';
-import { ChatPanel } from '@/components/chat/ChatPanel';
+import { AICoach } from '@/components/chat/AICoach';
 import { StravaConnect } from '@/components/integrations/StravaConnect';
 import { StatsCard } from '@/components/stats/StatsCard';
 import { generateWeeklyPlan } from '@/lib/coach/engine';
@@ -144,8 +144,8 @@ export default async function DashboardPage() {
         <StrengthLogForm action={saveStrength} />
       </div>
 
-      {/* Chat Panel */}
-      <ChatPanel />
+      {/* AI Coach */}
+      <AICoach compact />
     </section>
   );
 }
