@@ -12,6 +12,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊' },
   { name: 'Training Plan', href: '/plan', icon: '📅' },
+  { name: 'Create Training', href: '/create-training', icon: '✏️' },
   { name: 'AI Coach', href: '/coach', icon: '🤖' },
   { name: 'Activity Log', href: '/log', icon: '📝' },
   { name: 'Analytics', href: '/analytics', icon: '📈' },

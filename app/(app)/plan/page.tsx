@@ -5,6 +5,8 @@ import { WeekNavigation } from '@/components/plan/WeekNavigation';
 import { VolumeTracking } from '@/components/plan/VolumeTracking';
 import { ProgressiveOverloadScore } from '@/components/plan/ProgressiveOverloadScore';
 import { TrainingDay } from '@/lib/db/types';
+import { getActiveTemplate, WorkoutTemplate, TemplateDay } from '@/app/actions/templates';
+import Link from 'next/link';
 
 interface Exercise {
   name: string;
@@ -146,6 +148,13 @@ function getCurrentWeek() {
   return { week, year: now.getFullYear() };
 }
 
+function getWeekStartDate(week: number, year: number): string {
+  const jan4 = new Date(year, 0, 4);
+  const daysToAdd = (week - 1) * 7 - jan4.getDay() + 1;
+  const weekStart = new Date(year, 0, 4 + daysToAdd);
+  return weekStart.toISOString().split('T')[0];
+}
+
 export default function PlanPage() {
   const { week: currentWeekNum, year: currentYearNum } = getCurrentWeek();
   const [currentWeek, setCurrentWeek] = useState(currentWeekNum);
@@ -159,6 +168,8 @@ export default function PlanPage() {
     recoveryQuality: 70
   });
   const [loading, setLoading] = useState(true);
+  const [activeTemplate, setActiveTemplate] = useState<WorkoutTemplate | null>(null);
+  const [templateLoading, setTemplateLoading] = useState(true);
 
   // Fetch volume data when week changes
   useEffect(() => {
@@ -196,12 +207,57 @@ export default function PlanPage() {
     fetchData();
   }, [currentWeek, currentYear]);
 
+  // Fetch active template when week changes
+  useEffect(() => {
+    async function fetchTemplate() {
+      setTemplateLoading(true);
+      try {
+        const weekStartDate = getWeekStartDate(currentWeek, currentYear);
+        const template = await getActiveTemplate('demo-user', weekStartDate);
+        setActiveTemplate(template);
+      } catch (error) {
+        console.error('Error fetching active template:', error);
+      } finally {
+        setTemplateLoading(false);
+      }
+    }
+
+    fetchTemplate();
+  }, [currentWeek, currentYear]);
+
+  // Convert template days to DayWorkout format
+  const workouts: DayWorkout[] = activeTemplate?.days
+    ? activeTemplate.days.map((day: TemplateDay) => ({
+        day: day.day_of_week,
+        type: day.type,
+        exercises: day.exercises?.map(ex => ({
+          name: ex.exercise_name || 'Unknown Exercise',
+          targetSets: String(ex.sets),
+          targetReps: ex.reps,
+          tempo: ex.tempo,
+          rest: ex.rest,
+          targetRpe: ex.target_rpe,
+          targetRir: ex.target_rir,
+          notes: ex.notes
+        }))
+      }))
+    : WEEK_WORKOUTS;
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-text-primary mb-2">Training Plan</h1>
-        <p className="text-text-secondary">Your weekly strength training program</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary mb-2">Training Plan</h1>
+          <p className="text-text-secondary">
+            {activeTemplate ? `Template: ${activeTemplate.name}` : 'Your weekly strength training program'}
+          </p>
+        </div>
+        {!activeTemplate && !templateLoading && (
+          <Link href="/create-training" className="btn-primary">
+            Create Training Plan
+          </Link>
+        )}
       </div>
 
       {/* Week Navigation */}
@@ -243,11 +299,17 @@ export default function PlanPage() {
       {/* Weekly Workouts */}
       <div className="space-y-4">
         <h2 className="text-2xl font-bold text-white">Weekly Schedule</h2>
-        <div className="grid gap-4">
-          {WEEK_WORKOUTS.map((workout) => (
-            <DayCard key={workout.day} workout={workout} />
-          ))}
-        </div>
+        {templateLoading ? (
+          <div className="card text-center py-12">
+            <p className="text-white/60">Loading workout plan...</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {workouts.map((workout) => (
+              <DayCard key={workout.day} workout={workout} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
