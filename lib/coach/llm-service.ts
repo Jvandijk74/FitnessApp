@@ -38,13 +38,20 @@ export class LLMService {
       this.provider = 'groq';
       this.baseUrl = 'https://api.groq.com/openai/v1';
       this.model = process.env.LLM_MODEL || 'llama-3.1-8b-instant';
+      console.log('🤖 [LLM Service] Initialized with Groq AI');
+      console.log(`   ✅ Provider: Groq`);
+      console.log(`   ✅ Model: ${this.model}`);
+      console.log(`   ✅ API Key: ${this.apiKey.substring(0, 10)}...`);
+      console.log(`   ✅ Base URL: ${this.baseUrl}`);
     } else {
       this.provider = 'ollama';
       this.baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
       this.model = process.env.OLLAMA_MODEL || 'llama2';
+      console.log('🤖 [LLM Service] Initialized with Ollama (Groq API key not found)');
+      console.log(`   ⚠️  Provider: Ollama (Fallback)`);
+      console.log(`   ⚠️  Model: ${this.model}`);
+      console.log(`   ⚠️  Base URL: ${this.baseUrl}`);
     }
-
-    console.log(`Using LLM provider: ${this.provider} with model: ${this.model}`);
   }
 
   async chat(messages: Message[]): Promise<string> {
@@ -82,6 +89,14 @@ export class LLMService {
   }
 
   private async chatWithGroq(messages: Message[]): Promise<string> {
+    const startTime = Date.now();
+    const userMessage = messages.find(m => m.role === 'user')?.content || '';
+
+    console.log('\n🚀 [Groq API] Starting request');
+    console.log(`   📝 User message: "${userMessage.substring(0, 100)}${userMessage.length > 100 ? '...' : ''}"`);
+    console.log(`   🔧 Model: ${this.model}`);
+    console.log(`   📊 Message count: ${messages.length}`);
+
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
@@ -97,15 +112,29 @@ export class LLMService {
         }),
       });
 
+      const duration = Date.now() - startTime;
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error(`\n❌ [Groq API] Request failed (${duration}ms)`);
+        console.error(`   Status: ${response.status} ${response.statusText}`);
+        console.error(`   Error: ${errorText}`);
         throw new Error(`Groq API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data: GroqResponse = await response.json();
-      return data.choices[0].message.content;
+      const responseContent = data.choices[0].message.content;
+
+      console.log(`\n✅ [Groq API] Request successful (${duration}ms)`);
+      console.log(`   📝 Response: "${responseContent.substring(0, 100)}${responseContent.length > 100 ? '...' : ''}"`);
+      console.log(`   📏 Response length: ${responseContent.length} characters`);
+      console.log(`   ⏱️  Duration: ${duration}ms`);
+
+      return responseContent;
     } catch (error) {
-      console.error('Error calling Groq:', error);
+      const duration = Date.now() - startTime;
+      console.error(`\n❌ [Groq API] Exception occurred (${duration}ms)`);
+      console.error(`   Error: ${error instanceof Error ? error.message : String(error)}`);
       throw new Error('Failed to get response from Groq');
     }
   }

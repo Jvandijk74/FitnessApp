@@ -32,6 +32,7 @@ export function AICoach({ compact = false }: AICoachProps) {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
+    const startTime = Date.now();
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -39,11 +40,17 @@ export function AICoach({ compact = false }: AICoachProps) {
       timestamp: new Date(),
     };
 
+    console.log('\n💬 [AI Coach UI] User sent message');
+    console.log(`   Message: "${userMessage.content.substring(0, 100)}${userMessage.content.length > 100 ? '...' : ''}"`);
+    console.log(`   Timestamp: ${userMessage.timestamp.toISOString()}`);
+
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
     try {
+      console.log('🔄 [AI Coach UI] Calling API /coach/chat');
+
       // Call the AI Coach API
       const response = await fetch('/api/coach/chat', {
         method: 'POST',
@@ -56,11 +63,18 @@ export function AICoach({ compact = false }: AICoachProps) {
         }),
       });
 
+      const apiDuration = Date.now() - startTime;
+
       if (!response.ok) {
+        console.error(`❌ [AI Coach UI] API returned error status: ${response.status}`);
         throw new Error('Failed to get AI response');
       }
 
       const data = await response.json();
+
+      console.log(`✅ [AI Coach UI] API response received (${apiDuration}ms)`);
+      console.log(`   Response: "${data.response?.substring(0, 100)}${data.response?.length > 100 ? '...' : ''}"`);
+      console.log(`   Response length: ${data.response?.length || 0} characters`);
 
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -71,7 +85,10 @@ export function AICoach({ compact = false }: AICoachProps) {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      console.error('Error getting AI response:', error);
+      const errorDuration = Date.now() - startTime;
+      console.error(`❌ [AI Coach UI] Error occurred (${errorDuration}ms)`);
+      console.error('   Error:', error instanceof Error ? error.message : String(error));
+      console.warn('   ⚠️  Falling back to simulated response');
 
       // Fallback to simulated response if API fails
       const assistantMessage: Message = {
@@ -81,7 +98,11 @@ export function AICoach({ compact = false }: AICoachProps) {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+
+      console.log('   ℹ️  Simulated response used');
     } finally {
+      const totalDuration = Date.now() - startTime;
+      console.log(`⏱️  [AI Coach UI] Total interaction time: ${totalDuration}ms`);
       setIsLoading(false);
     }
   };
