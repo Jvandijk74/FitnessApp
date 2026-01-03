@@ -39,6 +39,7 @@ create table if not exists run_logged (
   max_hr integer,
   rpe integer,
   source text default 'manual' check (source in ('manual', 'strava')),
+  activity_date timestamptz default now(),
   created_at timestamptz default now()
 );
 

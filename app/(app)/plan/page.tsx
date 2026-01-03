@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { WeekNavigation } from '@/components/plan/WeekNavigation';
+import { VolumeTracking } from '@/components/plan/VolumeTracking';
+import { ProgressiveOverloadScore } from '@/components/plan/ProgressiveOverloadScore';
 import { TrainingDay } from '@/lib/db/types';
 
 interface Exercise {
@@ -19,6 +22,7 @@ interface LoggedSet {
   weight: number;
   reps: number;
   rpe?: number;
+  rir?: number;
 }
 
 interface DayWorkout {
@@ -30,9 +34,6 @@ interface DayWorkout {
     targetRpe: number;
   };
   exercises?: Exercise[];
-  logged?: {
-    [exerciseName: string]: LoggedSet[];
-  };
 }
 
 const WEEK_WORKOUTS: DayWorkout[] = [
@@ -73,39 +74,6 @@ const WEEK_WORKOUTS: DayWorkout[] = [
         rest: '90 sec',
         targetRir: '1-2'
       },
-      {
-        name: 'Seated Dumbbell Shoulder Press',
-        targetSets: '3',
-        targetReps: '8-10',
-        tempo: '3-0-1-0',
-        rest: '90 sec',
-        targetRir: '1-2'
-      },
-      {
-        name: 'Abdominal crunch',
-        targetSets: '3',
-        targetReps: '10-12',
-        tempo: '3-1-1-0',
-        rest: '60 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Oblique woodchopper',
-        targetSets: '3',
-        targetReps: '10-12',
-        tempo: '3-1-1-0',
-        rest: '60 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Weighted Reverse Crunch',
-        targetSets: '2-3',
-        targetReps: '8-10',
-        tempo: '3-1-1-1',
-        rest: '60 sec',
-        targetRpe: '8',
-        optional: true
-      },
     ],
   },
   {
@@ -130,14 +98,6 @@ const WEEK_WORKOUTS: DayWorkout[] = [
         notes: 'Post Tempo/Maintenance'
       },
       {
-        name: 'Romanian Deadlift (light)',
-        targetSets: '2',
-        targetReps: '8-10',
-        tempo: '4-0-1-0',
-        rest: '2 min',
-        targetRpe: '6'
-      },
-      {
         name: 'Lat Pulldown',
         targetSets: '3',
         targetReps: '10-12',
@@ -145,61 +105,12 @@ const WEEK_WORKOUTS: DayWorkout[] = [
         rest: '90 sec',
         targetRir: '1-2'
       },
-      {
-        name: 'Seated Dumbbell Shoulder Press',
-        targetSets: '3',
-        targetReps: '10',
-        tempo: '3-0-1-1',
-        rest: '90 sec',
-        targetRpe: '7'
-      },
-      {
-        name: 'Cable Chest Fly',
-        targetSets: '2-3',
-        targetReps: '12-15',
-        tempo: '3-1-2-1',
-        rest: '75 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Cable Crunch',
-        targetSets: '3',
-        targetReps: '10-12',
-        tempo: '3-1-1-0',
-        rest: '60 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Cable Woodchopper',
-        targetSets: '2',
-        targetReps: '10/side',
-        tempo: '2-0-2-0',
-        rest: '45-60 sec',
-        targetRpe: '7-8'
-      },
-      {
-        name: 'Reverse Crunch',
-        targetSets: '2',
-        targetReps: '10',
-        tempo: '3-1-1-1',
-        rest: '60 sec',
-        targetRpe: '7-8'
-      },
     ],
   },
   {
     day: 'friday',
     type: 'strength',
     exercises: [
-      {
-        name: 'Hack squat / Pendulum / Belt squat',
-        targetSets: '3',
-        targetReps: '10-15',
-        tempo: '3-0-2-0',
-        rest: '90-120 sec',
-        targetRpe: '8-9',
-        notes: 'Hypertrophy/Pump'
-      },
       {
         name: 'Leg Press',
         targetSets: '3',
@@ -215,73 +126,6 @@ const WEEK_WORKOUTS: DayWorkout[] = [
         tempo: '3-1-1-1',
         rest: '75-90 sec',
         targetRir: '0-1',
-        notes: 'Last 2 sets'
-      },
-      {
-        name: 'Hip Thrust',
-        targetSets: '3',
-        targetReps: '10-12',
-        tempo: '2-1-1-2',
-        rest: '90 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Machine Chest Press',
-        targetSets: '3',
-        targetReps: '12-15',
-        tempo: '2-0-2-0',
-        rest: '75 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Seated Row',
-        targetSets: '3',
-        targetReps: '12-15',
-        tempo: '2-1-2-1',
-        rest: '90 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Lateral Raises',
-        targetSets: '4',
-        targetReps: '15-20',
-        tempo: '2-0-2-0',
-        rest: '45-60 sec',
-        targetRpe: '8'
-      },
-      {
-        name: 'Cable Curl',
-        targetSets: '3',
-        targetReps: '12-15',
-        tempo: '2-0-2-1',
-        rest: '60 sec',
-        targetRir: '0-1',
-        notes: 'Last set'
-      },
-      {
-        name: 'Rope Pushdown',
-        targetSets: '3',
-        targetReps: '12-15',
-        tempo: '2-0-2-1',
-        rest: '60 sec',
-        targetRir: '0-1',
-        notes: 'Last set'
-      },
-      {
-        name: 'Hanging Knee Raise',
-        targetSets: '3',
-        targetReps: '12-15',
-        tempo: '2-1-2-1',
-        rest: '60 sec',
-        targetRpe: '7-8'
-      },
-      {
-        name: 'Cable Crunch (light)',
-        targetSets: '2',
-        targetReps: '15',
-        tempo: '2-1-2-0',
-        rest: '60 sec',
-        targetRpe: '7'
       },
     ],
   },
@@ -295,14 +139,125 @@ const WEEK_WORKOUTS: DayWorkout[] = [
   },
 ];
 
-function calculateVolume(sets: LoggedSet[]): number {
-  return sets.reduce((total, set) => total + (set.weight * set.reps), 0);
+function getCurrentWeek() {
+  const now = new Date();
+  const onejan = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
+  return { week, year: now.getFullYear() };
+}
+
+export default function PlanPage() {
+  const { week: currentWeekNum, year: currentYearNum } = getCurrentWeek();
+  const [currentWeek, setCurrentWeek] = useState(currentWeekNum);
+  const [currentYear, setCurrentYear] = useState(currentYearNum);
+  const [volumeData, setVolumeData] = useState<any[]>([]);
+  const [previousVolumeData, setPreviousVolumeData] = useState<any[]>([]);
+  const [overloadFactors, setOverloadFactors] = useState({
+    volumeIncrease: 0,
+    intensityIncrease: 0,
+    frequencyConsistency: 0,
+    recoveryQuality: 70
+  });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch volume data when week changes
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        // Fetch current week volume
+        const currentRes = await fetch(`/api/volume?week=${currentWeek}&year=${currentYear}`);
+        const currentData = await currentRes.json();
+        setVolumeData(currentData.volumeData || []);
+
+        // Fetch previous week volume
+        let prevWeek = currentWeek - 1;
+        let prevYear = currentYear;
+        if (prevWeek === 0) {
+          prevWeek = 52;
+          prevYear = currentYear - 1;
+        }
+
+        const prevRes = await fetch(`/api/volume?week=${prevWeek}&year=${prevYear}`);
+        const prevData = await prevRes.json();
+        setPreviousVolumeData(prevData.volumeData || []);
+
+        // Fetch progressive overload factors
+        const overloadRes = await fetch(`/api/volume/overload?week=${currentWeek}&year=${currentYear}`);
+        const overloadData = await overloadRes.json();
+        setOverloadFactors(overloadData.factors || overloadFactors);
+      } catch (error) {
+        console.error('Error fetching volume data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [currentWeek, currentYear]);
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-text-primary mb-2">Training Plan</h1>
+        <p className="text-text-secondary">Your weekly strength training program</p>
+      </div>
+
+      {/* Week Navigation */}
+      <WeekNavigation
+        currentWeek={currentWeek}
+        currentYear={currentYear}
+        onWeekChange={(week, year) => {
+          setCurrentWeek(week);
+          setCurrentYear(year);
+        }}
+      />
+
+      {/* Metrics Row */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Volume Tracking */}
+        {!loading && volumeData.length > 0 ? (
+          <VolumeTracking
+            weekData={volumeData}
+            previousWeekData={previousVolumeData}
+          />
+        ) : (
+          <div className="card">
+            <h3 className="text-xl font-bold text-white mb-4">Weekly Volume by Muscle Group</h3>
+            <div className="text-center py-8 text-white/60">
+              <p className="text-2xl mb-2">📊</p>
+              <p>No training data for this week yet</p>
+              <p className="text-sm mt-1">Start logging your workouts to see volume tracking</p>
+            </div>
+          </div>
+        )}
+
+        {/* Progressive Overload Score */}
+        <ProgressiveOverloadScore
+          factors={overloadFactors}
+          weekOverWeekChange={overloadFactors.volumeIncrease}
+        />
+      </div>
+
+      {/* Weekly Workouts */}
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold text-white">Weekly Schedule</h2>
+        <div className="grid gap-4">
+          {WEEK_WORKOUTS.map((workout) => (
+            <DayCard key={workout.day} workout={workout} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function DayCard({ workout }: { workout: DayWorkout }) {
   const [expanded, setExpanded] = useState(false);
-  const [logging, setLogging] = useState(false);
   const [loggedSets, setLoggedSets] = useState<{ [key: string]: LoggedSet[] }>({});
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
 
   const dayLabels: Record<TrainingDay, string> = {
     monday: 'Monday',
@@ -340,9 +295,54 @@ function DayCard({ workout }: { workout: DayWorkout }) {
   const getTotalVolume = () => {
     let total = 0;
     Object.values(loggedSets).forEach(sets => {
-      total += calculateVolume(sets);
+      sets.forEach(set => {
+        total += set.weight * set.reps;
+      });
     });
     return total;
+  };
+
+  const saveWorkout = async () => {
+    setSaving(true);
+    setSaveMessage('');
+
+    try {
+      // Save each exercise
+      for (const [exerciseName, sets] of Object.entries(loggedSets)) {
+        if (sets.length === 0) continue;
+
+        const response = await fetch('/api/plan/log-strength', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: 'demo-user',
+            day: workout.day,
+            exercise: exerciseName,
+            sets: sets.map(s => ({
+              weight: Number(s.weight),
+              reps: Number(s.reps),
+              rpe: s.rpe ? Number(s.rpe) : undefined,
+              rir: s.rir ? Number(s.rir) : undefined
+            }))
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to save ${exerciseName}`);
+        }
+      }
+
+      setSaveMessage('✅ Workout saved successfully!');
+      setTimeout(() => {
+        setSaveMessage('');
+        setLoggedSets({});
+      }, 3000);
+    } catch (error) {
+      console.error('Error saving workout:', error);
+      setSaveMessage('❌ Failed to save workout. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -354,36 +354,28 @@ function DayCard({ workout }: { workout: DayWorkout }) {
       >
         <div className="flex items-center gap-3">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${
-            workout.type === 'run' ? 'bg-primary-500/10' :
-            workout.type === 'strength' ? 'bg-accent-500/10' :
-            'bg-surface-elevated'
+            workout.type === 'strength' ? 'bg-accent/20' : 'bg-white/5'
           }`}>
-            {workout.type === 'run' ? '🏃' : workout.type === 'strength' ? '💪' : '😴'}
+            {workout.type === 'strength' ? '💪' : '😴'}
           </div>
           <div>
-            <h3 className="font-semibold text-text-primary">{dayLabels[workout.day]}</h3>
-            <p className="text-sm text-text-secondary">
-              {workout.type === 'run' && `${workout.run?.duration} min • ${workout.run?.intensity}`}
-              {workout.type === 'strength' && (
-                <>
-                  {workout.exercises?.length} exercises
-                  {workout.exercises && workout.exercises[0]?.notes && ` • ${workout.exercises[0].notes}`}
-                </>
-              )}
+            <h3 className="font-semibold text-white">{dayLabels[workout.day]}</h3>
+            <p className="text-sm text-white/60">
+              {workout.type === 'strength' && `${workout.exercises?.length} exercises`}
               {workout.type === 'rest' && 'Rest day'}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {workout.type === 'strength' && Object.keys(loggedSets).length > 0 && (
+          {workout.type === 'strength' && getTotalVolume() > 0 && (
             <div className="text-right">
-              <p className="text-xs text-text-tertiary">Total Volume</p>
-              <p className="text-lg font-bold text-primary-400">{getTotalVolume()} kg</p>
+              <p className="text-xs text-white/60">Total Volume</p>
+              <p className="text-lg font-bold text-accent">{getTotalVolume()} kg</p>
             </div>
           )}
           <svg
-            className={`w-5 h-5 text-text-tertiary transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`w-5 h-5 text-white/60 transition-transform ${expanded ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -394,176 +386,103 @@ function DayCard({ workout }: { workout: DayWorkout }) {
       </div>
 
       {/* Expanded Content */}
-      {expanded && (
-        <div className="mt-4 space-y-4 border-t border-surface-elevated pt-4">
-          {workout.type === 'run' && (
-            <div className="p-4 rounded-lg bg-primary-500/5 border border-primary-500/20">
-              <p className="text-sm text-text-secondary">
-                Target: {workout.run?.duration} min • {workout.run?.intensity} • RPE {workout.run?.targetRpe}
-              </p>
-              <button className="btn-primary mt-3">Log Run</button>
-            </div>
-          )}
+      {expanded && workout.type === 'strength' && (
+        <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+          {workout.exercises?.map((exercise, exIndex) => (
+            <div key={exIndex} className="border border-white/10 rounded-lg p-4">
+              {/* Exercise Header */}
+              <div className="mb-3">
+                <h4 className="font-semibold text-white">{exercise.name}</h4>
+                <p className="text-xs text-white/60 mt-1">
+                  Target: {exercise.targetSets} sets × {exercise.targetReps} reps • Tempo {exercise.tempo} • Rest {exercise.rest}
+                  {exercise.targetRpe && ` • RPE ${exercise.targetRpe}`}
+                  {exercise.targetRir && ` • RIR ${exercise.targetRir}`}
+                </p>
+                {exercise.notes && (
+                  <p className="text-xs text-primary mt-1">{exercise.notes}</p>
+                )}
+              </div>
 
-          {workout.type === 'strength' && (
-            <div className="space-y-4">
-              {workout.exercises?.map((exercise, exIndex) => (
-                <div key={exIndex} className="border border-surface-elevated rounded-lg p-4">
-                  {/* Exercise Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold text-text-primary">{exercise.name}</h4>
-                        {exercise.optional && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-surface-elevated text-text-tertiary border border-surface">
-                            Optional
-                          </span>
-                        )}
+              {/* Logged Sets */}
+              {loggedSets[exercise.name] && loggedSets[exercise.name].length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {loggedSets[exercise.name].map((set, setIndex) => (
+                    <div key={setIndex} className="grid grid-cols-12 gap-2">
+                      <div className="col-span-1 flex items-center">
+                        <span className="text-sm font-medium text-white/70">{setIndex + 1}</span>
                       </div>
-                      <p className="text-xs text-text-tertiary mt-1">
-                        Target: {exercise.targetSets} sets × {exercise.targetReps} reps
-                        {' • '}Tempo {exercise.tempo}
-                        {' • '}Rest {exercise.rest}
-                        {exercise.targetRpe && ` • RPE ${exercise.targetRpe}`}
-                        {exercise.targetRir && ` • RIR ${exercise.targetRir}`}
-                      </p>
-                      {exercise.notes && (
-                        <p className="text-xs text-primary-400 mt-1">
-                          {exercise.notes}
-                        </p>
-                      )}
+                      <div className="col-span-3">
+                        <input
+                          type="number"
+                          placeholder="Weight"
+                          value={set.weight || ''}
+                          onChange={(e) => updateSet(exercise.name, setIndex, 'weight', Number(e.target.value))}
+                          className="form-input w-full text-sm"
+                        />
+                      </div>
+                      <div className="col-span-3">
+                        <input
+                          type="number"
+                          placeholder="Reps"
+                          value={set.reps || ''}
+                          onChange={(e) => updateSet(exercise.name, setIndex, 'reps', Number(e.target.value))}
+                          className="form-input w-full text-sm"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input
+                          type="number"
+                          placeholder="RPE"
+                          value={set.rpe || ''}
+                          onChange={(e) => updateSet(exercise.name, setIndex, 'rpe', Number(e.target.value))}
+                          className="form-input w-full text-sm"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-xs text-white/60">
+                          {set.weight && set.reps ? `${set.weight * set.reps} kg` : '—'}
+                        </span>
+                      </div>
+                      <div className="col-span-1 flex items-center">
+                        <button
+                          onClick={() => removeSet(exercise.name, setIndex)}
+                          className="text-red-400 hover:text-red-300"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </div>
-                    {loggedSets[exercise.name] && loggedSets[exercise.name].length > 0 && (
-                      <div className="text-right ml-3">
-                        <p className="text-xs text-text-tertiary">Volume</p>
-                        <p className="text-sm font-bold text-accent-400">
-                          {calculateVolume(loggedSets[exercise.name])} kg
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Logged Sets */}
-                  {loggedSets[exercise.name] && loggedSets[exercise.name].length > 0 && (
-                    <div className="space-y-2 mb-3">
-                      <div className="grid grid-cols-12 gap-2 text-xs text-text-tertiary font-medium px-2">
-                        <span className="col-span-1">Set</span>
-                        <span className="col-span-3">Weight (kg)</span>
-                        <span className="col-span-2">Reps</span>
-                        <span className="col-span-2">RPE</span>
-                        <span className="col-span-3">Volume</span>
-                        <span className="col-span-1"></span>
-                      </div>
-                      {loggedSets[exercise.name].map((set, setIndex) => (
-                        <div key={setIndex} className="grid grid-cols-12 gap-2 items-center">
-                          <span className="col-span-1 text-sm text-text-secondary font-medium">
-                            {setIndex + 1}
-                          </span>
-                          <input
-                            type="number"
-                            value={set.weight || ''}
-                            onChange={(e) => updateSet(exercise.name, setIndex, 'weight', parseFloat(e.target.value) || 0)}
-                            className="col-span-3 px-3 py-2 rounded-lg border border-surface-elevated bg-surface text-text-primary focus:outline-none focus:border-primary-500"
-                            placeholder="0"
-                          />
-                          <input
-                            type="number"
-                            value={set.reps || ''}
-                            onChange={(e) => updateSet(exercise.name, setIndex, 'reps', parseInt(e.target.value) || 0)}
-                            className="col-span-2 px-3 py-2 rounded-lg border border-surface-elevated bg-surface text-text-primary focus:outline-none focus:border-primary-500"
-                            placeholder="0"
-                          />
-                          <input
-                            type="number"
-                            value={set.rpe || ''}
-                            onChange={(e) => updateSet(exercise.name, setIndex, 'rpe', parseInt(e.target.value) || 0)}
-                            className="col-span-2 px-3 py-2 rounded-lg border border-surface-elevated bg-surface text-text-primary focus:outline-none focus:border-primary-500"
-                            placeholder="7"
-                            min="1"
-                            max="10"
-                          />
-                          <span className="col-span-3 text-sm font-medium text-primary-400">
-                            {set.weight * set.reps} kg
-                          </span>
-                          <button
-                            onClick={() => removeSet(exercise.name, setIndex)}
-                            className="col-span-1 text-semantic-error hover:text-semantic-error/80"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Add Set Button */}
-                  <button
-                    onClick={() => addSet(exercise.name)}
-                    className="btn-secondary w-full text-sm"
-                  >
-                    + Add Set
-                  </button>
-                </div>
-              ))}
-
-              {/* Save Workout Button */}
-              {Object.keys(loggedSets).length > 0 && (
-                <div className="flex gap-3 pt-4 border-t border-surface-elevated">
-                  <button className="btn-secondary flex-1">Cancel</button>
-                  <button className="btn-primary flex-1">Save Workout</button>
+                  ))}
                 </div>
               )}
-            </div>
-          )}
 
-          {workout.type === 'rest' && (
-            <div className="p-4 rounded-lg bg-surface-elevated text-center">
-              <p className="text-text-secondary">Rest & Recovery</p>
-              <p className="text-sm text-text-tertiary mt-2">
-                Focus on recovery • Mobility work • Light stretching • Proper nutrition
-              </p>
+              {/* Add Set Button */}
+              <button
+                onClick={() => addSet(exercise.name)}
+                className="btn-secondary w-full text-sm"
+              >
+                + Add Set
+              </button>
+            </div>
+          ))}
+
+          {/* Save Button */}
+          {Object.keys(loggedSets).length > 0 && (
+            <div className="pt-4 border-t border-white/10">
+              <button
+                onClick={saveWorkout}
+                disabled={saving}
+                className="btn-primary w-full"
+              >
+                {saving ? 'Saving...' : 'Save Workout'}
+              </button>
+              {saveMessage && (
+                <p className="text-sm text-center mt-2">{saveMessage}</p>
+              )}
             </div>
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-export default function TrainingPlanPage() {
-  return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-text-primary mb-2">Training Plan</h1>
-        <p className="text-text-secondary">Week starting January 2, 2026</p>
-      </div>
-
-      {/* Weekly Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="card">
-          <p className="text-sm text-text-tertiary mb-1">Strength Sessions</p>
-          <p className="text-2xl font-bold text-accent-400">3 days</p>
-          <p className="text-xs text-text-tertiary mt-1">Mon • Thu • Fri</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-text-tertiary mb-1">Total Exercises</p>
-          <p className="text-2xl font-bold text-text-primary">27 exercises</p>
-          <p className="text-xs text-text-tertiary mt-1">8 + 8 + 11 per week</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-text-tertiary mb-1">Training Focus</p>
-          <p className="text-2xl font-bold text-primary-400">Full Body</p>
-          <p className="text-xs text-text-tertiary mt-1">Progressive overload</p>
-        </div>
-      </div>
-
-      {/* Training Days */}
-      <div className="space-y-3">
-        {WEEK_WORKOUTS.map((workout) => (
-          <DayCard key={workout.day} workout={workout} />
-        ))}
-      </div>
     </div>
   );
 }
