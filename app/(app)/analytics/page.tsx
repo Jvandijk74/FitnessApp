@@ -1,5 +1,6 @@
 import { StatsCard } from '@/components/stats/StatsCard';
 import { getMonthlyAnalytics, calculateHealthMetrics } from '@/app/actions/metrics';
+import { AIAnalysis } from '@/components/analytics/AIAnalysis';
 
 const DEMO_USER = 'demo-user';
 
@@ -138,6 +139,9 @@ export default async function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* AI Training Analysis */}
+      <AIAnalysis userId={DEMO_USER} />
     </div>
   );
 }
