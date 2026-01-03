@@ -43,9 +43,37 @@ export function AICoach({ compact = false }: AICoachProps) {
     setInput('');
     setIsLoading(true);
 
-    // TODO: Replace this with actual AI agent API call
-    // For now, simulating a response
-    setTimeout(() => {
+    try {
+      // Call the AI Coach API
+      const response = await fetch('/api/coach/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage.content,
+          context: 'User is asking about their fitness training program',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
+      }
+
+      const data = await response.json();
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: data.response,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error getting AI response:', error);
+
+      // Fallback to simulated response if API fails
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -53,8 +81,9 @@ export function AICoach({ compact = false }: AICoachProps) {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   // Simulated responses - replace with actual AI agent
