@@ -205,14 +205,17 @@ export async function getMonthlyAnalytics(userId: string) {
       }) || [];
 
       const distance = weekRuns.reduce((sum, r) => sum + (r.distance_km || 0), 0);
+      const duration = weekRuns.reduce((sum, r) => sum + (r.duration_minutes || 0), 0);
       const avgHR = weekRuns.filter(r => r.avg_hr).length > 0
         ? weekRuns.reduce((sum, r) => sum + (r.avg_hr || 0), 0) / weekRuns.filter(r => r.avg_hr).length
         : 0;
+      const avgPace = distance > 0 ? duration / distance : 0; // min/km
 
       weeklyData.push({
         week: `Week ${4 - i}`,
         distance: Math.round(distance * 10) / 10,
         avgHR: Math.round(avgHR),
+        avgPace: Math.round(avgPace * 100) / 100, // Round to 2 decimals
         runs: weekRuns.length,
       });
     }

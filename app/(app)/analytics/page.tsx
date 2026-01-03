@@ -77,21 +77,40 @@ export default async function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Heart Rate Trends */}
+        {/* Pace Trends */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Avg Heart Rate</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Avg Pace Per Week</h3>
           <div className="h-64 flex items-end justify-between gap-4">
-            {weeklyData.map((week, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-semantic-error/20 rounded-t-lg relative group cursor-pointer hover:bg-semantic-error/30 transition-colors"
-                  style={{ height: `${((week.avgHR - 150) / 30) * 100}%` }}>
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
-                    {week.avgHR} bpm
+            {weeklyData.map((week, i) => {
+              const pace = week.avgPace || 0;
+              // Lower pace is better (faster), so invert the height calculation
+              // Assuming pace range between 4:00/km (fast) and 7:00/km (slow)
+              const heightPercent = pace > 0 ? Math.max(20, Math.min(100, ((7 - pace) / 3) * 100)) : 0;
+
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                  <div
+                    className="w-full bg-primary-500/30 rounded-t-lg relative group cursor-pointer hover:bg-primary-500/40 transition-colors"
+                    style={{ height: `${heightPercent}%` }}
+                  >
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
+                      {pace > 0
+                        ? `${Math.floor(pace)}:${String(Math.round((pace % 1) * 60)).padStart(2, '0')} /km`
+                        : 'No data'}
+                    </div>
                   </div>
+                  <p className="text-xs text-text-tertiary">{week.week}</p>
+                  {pace > 0 && (
+                    <p className="text-xs font-medium text-primary-400">
+                      {Math.floor(pace)}:{String(Math.round((pace % 1) * 60)).padStart(2, '0')}
+                    </p>
+                  )}
                 </div>
-                <p className="text-xs text-text-tertiary">{week.week}</p>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+          <div className="mt-4 text-xs text-text-tertiary text-center">
+            Faster pace = higher bar (lower min/km is better)
           </div>
         </div>
       </div>
