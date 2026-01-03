@@ -8,6 +8,8 @@
     "NEXT_PUBLIC_SUPABASE_URL": "@next_public_supabase_url",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@next_public_supabase_anon_key",
     "STRAVA_CLIENT_ID": "@strava_client_id",
-    "STRAVA_CLIENT_SECRET": "@strava_client_secret"
+    "STRAVA_CLIENT_SECRET": "@strava_client_secret",
+    "GROQ_API_KEY": "@groq_api_key",
+    "LLM_MODEL": "@llm_model"
   }
 }
