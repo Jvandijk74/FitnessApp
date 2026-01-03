@@ -20,13 +20,28 @@ A production-ready foundation for a deterministic personal training and enduranc
    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    STRAVA_CLIENT_ID=...
    STRAVA_CLIENT_SECRET=...
+
+   # For AI Coach - choose one option:
+   # Option 1: Groq (free, works in production)
+   GROQ_API_KEY=your_groq_api_key
+   LLM_MODEL=llama-3.1-8b-instant
+
+   # Option 2: Ollama (local only)
    OLLAMA_BASE_URL=http://localhost:11434
-   OLLAMA_MODEL=llama2
+   OLLAMA_MODEL=gemma3:4b
    ```
-3. Install and run Ollama locally (for AI Coach):
+3. Set up AI Coach (choose one):
+
+   **Option A: Groq (Recommended for production)**
+   - Get a free API key at https://console.groq.com
+   - Add `GROQ_API_KEY` to your `.env.local`
+   - Works in both development and production (Vercel)
+
+   **Option B: Ollama (Local development only)**
    - Install from https://ollama.ai
-   - Pull a model: `ollama pull llama2` (or llama3, mistral, etc.)
-   - Ollama runs on http://localhost:11434 by default
+   - Pull a model: `ollama pull gemma3:4b`
+   - Runs on http://localhost:11434 by default
+   - Only works locally, not on Vercel
 4. Run the development server:
    ```bash
    npm run dev

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ollamaService } from '@/lib/coach/ollama-service';
+import { llmService } from '@/lib/coach/llm-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await ollamaService.generateCoachResponse(message, context);
+    const response = await llmService.generateCoachResponse(message, context);
 
     return NextResponse.json({
       success: true,

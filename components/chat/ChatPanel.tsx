@@ -62,7 +62,7 @@ export function ChatPanel() {
               ...prev,
               {
                 role: 'assistant',
-                content: 'Sorry, I encountered an error. Please make sure Ollama is running locally and try again.'
+                content: 'Sorry, I encountered an error. Please check your LLM configuration and try again.'
               }
             ]);
           } finally {
