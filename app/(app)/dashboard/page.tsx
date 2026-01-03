@@ -1,11 +1,16 @@
-import { WeeklyPlanView } from '@/components/plan/WeeklyPlan';
+import { TrainingTimeline } from '@/components/plan/TrainingTimeline';
 import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
-import { InsightCards } from '@/components/insights/InsightCards';
-import { ChatPanel } from '@/components/chat/ChatPanel';
+import { InsightFeed } from '@/components/insights/InsightFeed';
+import { AICoach } from '@/components/chat/AICoach';
+import { StravaConnect } from '@/components/integrations/StravaConnect';
+import { StatsCard } from '@/components/stats/StatsCard';
 import { generateWeeklyPlan } from '@/lib/coach/engine';
 import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
+import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
+import { getWeeklyStats, calculateHealthMetrics, generateInsights } from '@/app/actions/metrics';
+import { assessInjuryRisk } from '@/app/actions/training-plan';
 import { TrainingDay } from '@/lib/db/types';
 
 const DEMO_USER = 'demo-user';
@@ -42,6 +47,12 @@ async function saveStrength(formData: FormData) {
 }
 
 export default async function DashboardPage() {
+  // Fetch real metrics
+  const weeklyStats = await getWeeklyStats(DEMO_USER);
+  const healthMetrics = await calculateHealthMetrics(DEMO_USER);
+  const insights = await generateInsights(DEMO_USER);
+  const injuryRisk = await assessInjuryRisk(DEMO_USER);
+
   const profile: AthleteProfile = {
     id: DEMO_USER,
     thresholdPace: 4.9,
@@ -51,38 +62,155 @@ export default async function DashboardPage() {
   };
 
   const plan = generateWeeklyPlan(profile, {
-    averageRunMinutes: 42,
+    averageRunMinutes: weeklyStats.totalDuration / Math.max(1, weeklyStats.totalRuns) || 42,
     longRunMinutes: 75,
     highRpeCount: 1
   });
 
-  const insights = [
-    {
-      id: 'tempo-pace',
-      title: 'Tempo pace improving at same HR',
-      detail: 'Last 3 tempo runs averaged 4:45/km at 170bpm vs 4:55/km previously.'
-    },
-    {
-      id: 'strength-rpe',
-      title: 'Strength RPE trending up → fatigue risk',
-      detail: 'Average strength RPE 8.2. Coach will cap next Friday to RPE 6.'
-    },
-    {
-      id: 'hr-drift',
-      title: 'Long run HR drift rising',
-      detail: 'Cardiac drift 9% vs 6% last month; consider more easy volume before progressing.'
-    }
-  ];
+  // Check Strava connection status
+  let stravaConnection = null;
+  try {
+    console.log('[Dashboard] Fetching Strava connection...');
+    stravaConnection = await getStravaConnection(DEMO_USER);
+    console.log('[Dashboard] Strava connection status:', stravaConnection ? 'Connected' : 'Not connected');
+  } catch (error) {
+    console.error('[Dashboard] Error fetching Strava connection:', error);
+    console.error('[Dashboard] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+  }
 
   return (
-    <section className="grid gap-6">
-      <WeeklyPlanView plan={plan} />
+    <section className="space-y-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-text-primary mb-2">Dashboard</h1>
+        <p className="text-text-secondary">Your training overview and weekly plan</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatsCard
+          title="Weekly Distance"
+          value={`${weeklyStats.totalDistance.toFixed(1)} km`}
+          icon="🏃"
+          variant="default"
+        />
+        <StatsCard
+          title="Runs This Week"
+          value={weeklyStats.totalRuns.toString()}
+          icon="📊"
+          variant="success"
+        />
+        <StatsCard
+          title="Aerobic Fitness"
+          value={`${healthMetrics.aerobicFitness}%`}
+          icon="❤️"
+          trend={
+            healthMetrics.trend === 'improving'
+              ? { value: 5, isPositive: true }
+              : healthMetrics.trend === 'declining'
+              ? { value: 5, isPositive: false }
+              : undefined
+          }
+          variant={
+            healthMetrics.aerobicFitness >= 70
+              ? 'success'
+              : healthMetrics.aerobicFitness >= 50
+              ? 'info'
+              : 'warning'
+          }
+        />
+        <StatsCard
+          title="Training Load"
+          value={`${healthMetrics.trainingLoad}%`}
+          icon="⚡"
+          variant={
+            healthMetrics.trainingLoad >= 70
+              ? 'success'
+              : healthMetrics.trainingLoad >= 50
+              ? 'info'
+              : 'warning'
+          }
+        />
+        <StatsCard
+          title="Injury Risk"
+          value={injuryRisk.riskLevel.charAt(0).toUpperCase() + injuryRisk.riskLevel.slice(1)}
+          icon="🚨"
+          variant={
+            injuryRisk.riskLevel === 'low'
+              ? 'success'
+              : injuryRisk.riskLevel === 'moderate'
+              ? 'warning'
+              : 'default'
+          }
+        />
+      </div>
+
+      {/* Strava Integration */}
+      <StravaConnectWrapper
+        isConnected={!!stravaConnection}
+        athleteId={stravaConnection?.athleteId}
+      />
+
+      {/* Weekly Training Timeline */}
+      <TrainingTimeline plan={plan} />
+
+      {/* Insights Feed */}
+      <InsightFeed
+        insights={[
+          ...insights,
+          // Add injury risk insights if present
+          ...(injuryRisk.riskLevel !== 'low' && injuryRisk.riskFactors.length > 0
+            ? [
+                {
+                  id: 'injury-risk',
+                  title: `${injuryRisk.riskLevel === 'high' ? '⚠️ High' : 'Moderate'} Injury Risk Detected`,
+                  detail: injuryRisk.riskFactors.join('. ') + '.',
+                  type: (injuryRisk.riskLevel === 'high' ? 'warning' : 'info') as 'warning' | 'info',
+                  timestamp: 'Just now',
+                },
+              ]
+            : []),
+        ]}
+      />
+
+      {/* Quick Log Forms */}
       <div className="grid md:grid-cols-2 gap-4">
         <RunLogForm action={saveRun} />
         <StrengthLogForm action={saveStrength} />
       </div>
-      <InsightCards insights={insights} />
-      <ChatPanel />
+
+      {/* AI Coach */}
+      <AICoach compact />
     </section>
   );
+}
+
+async function syncActivities() {
+  'use server';
+  try {
+    console.log('[Dashboard] syncActivities action called');
+    const result = await syncStravaActivities(DEMO_USER);
+    console.log('[Dashboard] syncActivities completed successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('[Dashboard] syncActivities failed:', error);
+    console.error('[Dashboard] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
+}
+
+function StravaConnectWrapper({
+  isConnected,
+  athleteId
+}: {
+  isConnected: boolean;
+  athleteId?: number;
+}) {
+  return <StravaConnect isConnected={isConnected} athleteId={athleteId} onSync={syncActivities} />;
 }

@@ -1,3 +1,27 @@
+-- ============================================
+-- FitnessApp Database Reset Script
+-- ============================================
+-- This script drops all existing tables and recreates them
+-- WARNING: This will delete all data!
+-- ============================================
+
+-- Drop existing tables in correct order (respecting foreign keys)
+DROP TABLE IF EXISTS user_active_templates CASCADE;
+DROP TABLE IF EXISTS workout_template_exercises CASCADE;
+DROP TABLE IF EXISTS workout_template_days CASCADE;
+DROP TABLE IF EXISTS workout_templates CASCADE;
+DROP TABLE IF EXISTS exercises CASCADE;
+DROP TABLE IF EXISTS strength_sets_logged CASCADE;
+DROP TABLE IF EXISTS strength_exercises CASCADE;
+DROP TABLE IF EXISTS run_logged CASCADE;
+DROP TABLE IF EXISTS workouts CASCADE;
+DROP TABLE IF EXISTS insights CASCADE;
+DROP TABLE IF EXISTS readiness CASCADE;
+DROP TABLE IF EXISTS strava_connections CASCADE;
+DROP TABLE IF EXISTS plans CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+-- Now recreate all tables with the new schema
 -- Users
 create table if not exists users (
   id text primary key,
@@ -233,3 +257,8 @@ on conflict (name) do nothing;
 insert into users (id, email, threshold_pace, threshold_hr)
 values ('demo-user', 'demo@fitness.app', 4.9, 170)
 on conflict (id) do nothing;
+
+-- Success message
+SELECT 'Database reset completed successfully!' as message;
+SELECT COUNT(*) as total_exercises FROM exercises;
+SELECT * FROM users;
