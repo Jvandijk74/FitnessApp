@@ -258,10 +258,10 @@ export async function getMonthlyAnalytics(userId: string) {
     console.error('[Metrics] Exception in getMonthlyAnalytics:', error);
     return {
       weeklyData: [
-        { week: 'Week 1', distance: 0, avgHR: 0, runs: 0 },
-        { week: 'Week 2', distance: 0, avgHR: 0, runs: 0 },
-        { week: 'Week 3', distance: 0, avgHR: 0, runs: 0 },
-        { week: 'Week 4', distance: 0, avgHR: 0, runs: 0 },
+        { week: 'Week 1', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
+        { week: 'Week 2', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
+        { week: 'Week 3', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
+        { week: 'Week 4', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
       ],
       totals: { distance: 0, runs: 0, duration: 0, avgPace: 0 },
       insights: { bestWeek: 0, bestWeekName: 'Week 1', consistency: 0, improvement: 0 },
