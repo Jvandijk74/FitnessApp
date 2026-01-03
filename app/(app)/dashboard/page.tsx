@@ -168,7 +168,7 @@ export default async function DashboardPage() {
                   id: 'injury-risk',
                   title: `${injuryRisk.riskLevel === 'high' ? '⚠️ High' : 'Moderate'} Injury Risk Detected`,
                   detail: injuryRisk.riskFactors.join('. ') + '.',
-                  type: (injuryRisk.riskLevel === 'high' ? 'warning' : 'info') as const,
+                  type: (injuryRisk.riskLevel === 'high' ? 'warning' : 'info') as 'warning' | 'info',
                   timestamp: 'Just now',
                 },
               ]
