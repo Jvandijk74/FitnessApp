@@ -20,12 +20,18 @@ A production-ready foundation for a deterministic personal training and enduranc
    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
    STRAVA_CLIENT_ID=...
    STRAVA_CLIENT_SECRET=...
+   OLLAMA_BASE_URL=http://localhost:11434
+   OLLAMA_MODEL=llama2
    ```
-3. Run the development server:
+3. Install and run Ollama locally (for AI Coach):
+   - Install from https://ollama.ai
+   - Pull a model: `ollama pull llama2` (or llama3, mistral, etc.)
+   - Ollama runs on http://localhost:11434 by default
+4. Run the development server:
    ```bash
    npm run dev
    ```
-4. Generate the database schema on Supabase with `supabase/schema.sql`.
+5. Generate the database schema on Supabase with `supabase/schema.sql`.
 
 ## Testing
 - Lint with `npm run lint`.

@@ -4,7 +4,8 @@ import { useState } from 'react';
 
 export function ChatPanel() {
   const [messages, setMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [input, setInput] = useState('Explain my Friday double day.');
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   return (
     <div className="card space-y-3">
@@ -27,28 +28,57 @@ export function ChatPanel() {
         className="flex gap-2"
         onSubmit={async (e) => {
           e.preventDefault();
-          const payload = input;
-          setMessages((prev) => [...prev, { role: 'user', content: payload }]);
+          if (!input.trim() || isLoading) return;
+
+          const userMessage = input.trim();
+          setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
           setInput('');
-          // Placeholder for tool calling: call API route that uses deterministic data
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: 'assistant',
-              content:
-                'The coach engine keeps Friday as a capped double: easy aerobic run at RPE 6 and strength capped at RPE 6 to protect recovery heading into Sunday.'
+          setIsLoading(true);
+
+          try {
+            const response = await fetch('/api/coach/chat', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ message: userMessage }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to get response from AI Coach');
             }
-          ]);
+
+            const data = await response.json();
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: data.response
+              }
+            ]);
+          } catch (error) {
+            console.error('Error calling AI Coach:', error);
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: 'assistant',
+                content: 'Sorry, I encountered an error. Please make sure Ollama is running locally and try again.'
+              }
+            ]);
+          } finally {
+            setIsLoading(false);
+          }
         }}
       >
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           className="flex-1 rounded-lg border border-white/10 p-2"
-          placeholder="Ask how progressions are calculated"
+          placeholder="Ask about your training plan..."
+          disabled={isLoading}
         />
-        <button className="btn-primary" type="submit">
-          Send
+        <button className="btn-primary" type="submit" disabled={isLoading}>
+          {isLoading ? 'Thinking...' : 'Send'}
         </button>
       </form>
     </div>
