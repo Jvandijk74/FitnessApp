@@ -32,22 +32,12 @@ export default function ActivityLogPage() {
   const [selectedType, setSelectedType] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('date');
 
-  // Auto-sync from Strava and load activities on mount
+  // Load activities on mount (Strava auto-sync happens at app level)
   useEffect(() => {
-    async function initialize() {
+    async function loadActivities() {
       setIsLoading(true);
-      setIsSyncing(true);
 
       try {
-        // Auto-sync from Strava
-        console.log('[Activity Log] Auto-syncing from Strava...');
-        try {
-          await syncStravaActivities(DEMO_USER);
-          console.log('[Activity Log] Strava sync completed');
-        } catch (error) {
-          console.log('[Activity Log] Strava sync skipped (not connected or error):', error);
-        }
-
         // Fetch all activities
         const data = await getActivities(DEMO_USER);
         setActivities(data);
@@ -55,12 +45,11 @@ export default function ActivityLogPage() {
       } catch (error) {
         console.error('[Activity Log] Error loading activities:', error);
       } finally {
-        setIsSyncing(false);
         setIsLoading(false);
       }
     }
 
-    initialize();
+    loadActivities();
   }, []);
 
   // Get unique months from activities
@@ -137,12 +126,6 @@ export default function ActivityLogPage() {
           <h1 className="text-3xl font-bold text-text-primary mb-2">Activity Log</h1>
           <p className="text-text-secondary">
             View all your logged workouts and activities
-            {isSyncing && (
-              <span className="ml-2 text-primary-400 text-sm">
-                <span className="inline-block animate-spin mr-1">⚙️</span>
-                Syncing from Strava...
-              </span>
-            )}
           </p>
         </div>
         <div className="flex gap-3">
