@@ -89,21 +89,39 @@ export async function syncStravaActivities(userId: string) {
 
     if (runLogs.length > 0) {
       try {
-        const { error } = await supabase.from('run_logged').insert(runLogs);
-        if (error) {
-          console.error('[Strava Actions] Database insert error:', error);
-          throw new Error(`Failed to save activities to database: ${error.message}`);
+        // Get existing Strava activity IDs to avoid duplicates
+        const { data: existingRuns } = await supabase
+          .from('run_logged')
+          .select('strava_activity_id')
+          .eq('user_id', userId)
+          .not('strava_activity_id', 'is', null);
+
+        const existingIds = new Set(existingRuns?.map(r => r.strava_activity_id) || []);
+
+        // Filter out runs that already exist
+        const newRunLogs = runLogs.filter(log => !existingIds.has(log.strava_activity_id));
+
+        if (newRunLogs.length > 0) {
+          const { error } = await supabase.from('run_logged').insert(newRunLogs);
+          if (error) {
+            console.error('[Strava Actions] Database insert error:', error);
+            throw new Error(`Failed to save activities to database: ${error.message}`);
+          }
+          console.log('[Strava Actions] Successfully inserted', newRunLogs.length, 'new runs into database');
+          console.log('[Strava Actions] Skipped', runLogs.length - newRunLogs.length, 'duplicate runs');
+        } else {
+          console.log('[Strava Actions] All runs already exist in database');
         }
-        console.log('[Strava Actions] Successfully inserted', runLogs.length, 'runs into database');
       } catch (error) {
         console.error('[Strava Actions] Exception during database insert:', error);
         throw error;
       }
     } else {
-      console.log('[Strava Actions] No new runs to import');
+      console.log('[Strava Actions] No runs fetched from Strava');
     }
 
     revalidatePath('/dashboard');
+    revalidatePath('/log');
     console.log('[Strava Actions] Sync completed successfully');
 
     return { count: runs.length };
