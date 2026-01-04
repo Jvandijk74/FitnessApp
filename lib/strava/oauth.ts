@@ -135,14 +135,79 @@ export async function saveConnection(
   console.log('[Strava OAuth] Connection saved successfully!');
 }
 
+export async function refreshAccessToken(refreshToken: string) {
+  console.log('[Strava OAuth] Refreshing access token...');
+
+  const params = new URLSearchParams({
+    client_id: process.env.STRAVA_CLIENT_ID || '',
+    client_secret: process.env.STRAVA_CLIENT_SECRET || '',
+    refresh_token: refreshToken,
+    grant_type: 'refresh_token'
+  });
+
+  try {
+    const res = await fetch(STRAVA_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString()
+    });
+
+    if (!res.ok) {
+      const errorData = await res.text();
+      console.error('[Strava OAuth] Token refresh failed:', res.status, errorData);
+      throw new Error(`Failed to refresh Strava token: ${res.status}`);
+    }
+
+    const data = await res.json();
+    console.log('[Strava OAuth] Token refreshed successfully');
+
+    return {
+      access_token: data.access_token as string,
+      refresh_token: data.refresh_token as string,
+      expires_at: data.expires_at as number
+    };
+  } catch (error) {
+    console.error('[Strava OAuth] Exception refreshing token:', error);
+    throw error;
+  }
+}
+
 export async function fetchRecentRuns(accessToken: string) {
+  console.log('[Strava OAuth] Fetching recent runs from Strava...');
+
   const res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=20', {
     headers: {
       Authorization: `Bearer ${accessToken}`
     }
   });
-  if (!res.ok) throw new Error('Failed to fetch Strava activities');
+
+  if (!res.ok) {
+    const status = res.status;
+    const statusText = res.statusText;
+    let errorBody = '';
+
+    try {
+      errorBody = await res.text();
+    } catch (e) {
+      errorBody = 'Could not read error response';
+    }
+
+    console.error('[Strava OAuth] Failed to fetch activities:', {
+      status,
+      statusText,
+      body: errorBody
+    });
+
+    if (status === 401) {
+      throw new Error('Strava token expired or invalid');
+    }
+
+    throw new Error(`Failed to fetch Strava activities: ${status} ${statusText}`);
+  }
+
   const activities = await res.json();
+  console.log('[Strava OAuth] Fetched', activities.length, 'activities');
+
   return activities
     .filter((a: any) => a.type === 'Run')
     .map((a: any) => ({

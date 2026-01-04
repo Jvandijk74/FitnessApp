@@ -1,7 +1,7 @@
 'use server';
 
 import { getServerSupabase } from '@/lib/db/server-client';
-import { fetchRecentRuns, fetchActivityDetail, fetchActivityStreams } from '@/lib/strava/oauth';
+import { fetchRecentRuns, fetchActivityDetail, fetchActivityStreams, refreshAccessToken } from '@/lib/strava/oauth';
 import { revalidatePath } from 'next/cache';
 
 interface StravaRun {
@@ -36,6 +36,7 @@ export async function getStravaConnection(userId: string) {
     console.log('[Strava Actions] Connection found for athlete:', data.athlete_id);
     return {
       accessToken: data.access_token,
+      refreshToken: data.refresh_token,
       athleteId: data.athlete_id,
       isConnected: true
     };
@@ -64,12 +65,45 @@ export async function syncStravaActivities(userId: string) {
     const supabase = await getServerSupabase();
 
     let runs;
+    let accessToken = connection.accessToken;
+
     try {
-      runs = await fetchRecentRuns(connection.accessToken);
+      runs = await fetchRecentRuns(accessToken);
       console.log('[Strava Actions] Fetched', runs.length, 'activities from Strava');
     } catch (error) {
-      console.error('[Strava Actions] Failed to fetch runs from Strava:', error);
-      throw new Error(`Failed to fetch activities from Strava: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // If token expired, try refreshing it
+      if (error instanceof Error && error.message.includes('token expired')) {
+        console.log('[Strava Actions] Access token expired, refreshing...');
+
+        try {
+          const newTokens = await refreshAccessToken(connection.refreshToken);
+
+          // Update tokens in database
+          const { error: updateError } = await supabase
+            .from('strava_connections')
+            .update({
+              access_token: newTokens.access_token,
+              refresh_token: newTokens.refresh_token
+            })
+            .eq('user_id', userId);
+
+          if (updateError) {
+            console.error('[Strava Actions] Failed to update tokens:', updateError);
+            throw new Error('Failed to update refreshed tokens');
+          }
+
+          console.log('[Strava Actions] Tokens refreshed, retrying fetch...');
+          accessToken = newTokens.access_token;
+          runs = await fetchRecentRuns(accessToken);
+          console.log('[Strava Actions] Fetched', runs.length, 'activities after token refresh');
+        } catch (refreshError) {
+          console.error('[Strava Actions] Token refresh failed:', refreshError);
+          throw new Error('Strava connection expired. Please reconnect your Strava account.');
+        }
+      } else {
+        console.error('[Strava Actions] Failed to fetch runs from Strava:', error);
+        throw new Error(`Failed to fetch activities from Strava: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
     }
 
     // Import runs to the database

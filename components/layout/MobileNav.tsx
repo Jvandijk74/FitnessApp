@@ -11,8 +11,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊' },
+  { name: 'Log', href: '/log', icon: '📝' },
+  { name: 'Analytics', href: '/analytics', icon: '📈' },
   { name: 'Plan', href: '/plan', icon: '📅' },
-  { name: 'Coach', href: '/coach', icon: '🤖' },
   { name: 'More', href: '/settings', icon: '⚙️' },
 ];
 
@@ -21,7 +22,7 @@ export function MobileNav() {
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-surface-elevated z-50">
-      <div className="grid grid-cols-4 h-16">
+      <div className="grid grid-cols-5 h-16">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
