@@ -14,13 +14,15 @@ import {
   WorkoutTemplate
 } from '@/app/actions/templates';
 import { AIPlanGenerator } from '@/components/training/AIPlanGenerator';
+import { DayTemplateCreator } from '@/components/training/DayTemplateCreator';
+import { TemplateLibrary } from '@/components/training/TemplateLibrary';
 
 const DAYS: TrainingDay[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
-type CreationMode = 'manual' | 'ai';
+type CreationMode = 'week-template' | 'day-template' | 'browse-templates' | 'schedule-workout' | 'ai';
 
 export default function CreateTrainingPage() {
-  const [mode, setMode] = useState<CreationMode>('manual');
+  const [mode, setMode] = useState<CreationMode>('week-template');
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [currentDay, setCurrentDay] = useState<TrainingDay>('monday');
@@ -220,27 +222,60 @@ export default function CreateTrainingPage() {
 
       {/* Mode Toggle */}
       <div className="card">
-        <div className="flex gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
           <button
-            onClick={() => setMode('manual')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-              mode === 'manual'
+            onClick={() => setMode('week-template')}
+            className={`py-3 px-3 rounded-lg font-medium transition-all text-sm ${
+              mode === 'week-template'
                 ? 'bg-primary-500 text-white'
                 : 'bg-surface-elevated text-text-secondary hover:bg-surface-elevated/80'
             }`}
           >
-            <span className="mr-2">✏️</span>
-            Manual Creation
+            <div className="text-xl mb-1">📅</div>
+            Week Template
+          </button>
+          <button
+            onClick={() => setMode('day-template')}
+            className={`py-3 px-3 rounded-lg font-medium transition-all text-sm ${
+              mode === 'day-template'
+                ? 'bg-primary-500 text-white'
+                : 'bg-surface-elevated text-text-secondary hover:bg-surface-elevated/80'
+            }`}
+          >
+            <div className="text-xl mb-1">💪</div>
+            Single Day
+          </button>
+          <button
+            onClick={() => setMode('browse-templates')}
+            className={`py-3 px-3 rounded-lg font-medium transition-all text-sm ${
+              mode === 'browse-templates'
+                ? 'bg-primary-500 text-white'
+                : 'bg-surface-elevated text-text-secondary hover:bg-surface-elevated/80'
+            }`}
+          >
+            <div className="text-xl mb-1">📋</div>
+            Templates
+          </button>
+          <button
+            onClick={() => setMode('schedule-workout')}
+            className={`py-3 px-3 rounded-lg font-medium transition-all text-sm ${
+              mode === 'schedule-workout'
+                ? 'bg-primary-500 text-white'
+                : 'bg-surface-elevated text-text-secondary hover:bg-surface-elevated/80'
+            }`}
+          >
+            <div className="text-xl mb-1">📌</div>
+            Schedule
           </button>
           <button
             onClick={() => setMode('ai')}
-            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+            className={`py-3 px-3 rounded-lg font-medium transition-all text-sm ${
               mode === 'ai'
                 ? 'bg-primary-500 text-white'
                 : 'bg-surface-elevated text-text-secondary hover:bg-surface-elevated/80'
             }`}
           >
-            <span className="mr-2">🤖</span>
+            <div className="text-xl mb-1">🤖</div>
             AI Generated
           </button>
         </div>
@@ -257,8 +292,44 @@ export default function CreateTrainingPage() {
         />
       )}
 
-      {/* Manual Mode */}
-      {mode === 'manual' && (
+      {/* Day Template Mode */}
+      {mode === 'day-template' && (
+        <DayTemplateCreator
+          userId="demo-user"
+          onTemplateCreated={(templateId) => {
+            console.log('Template created:', templateId);
+            // Switch to browse templates view
+            setMode('browse-templates');
+          }}
+        />
+      )}
+
+      {/* Browse Templates Mode */}
+      {mode === 'browse-templates' && (
+        <div className="card">
+          <TemplateLibrary
+            userId="demo-user"
+            mode="select"
+            onTemplateSelect={(template) => {
+              console.log('Template selected:', template);
+              // You could do something with the selected template here
+            }}
+          />
+        </div>
+      )}
+
+      {/* Schedule Workout Mode */}
+      {mode === 'schedule-workout' && (
+        <div className="card">
+          <TemplateLibrary
+            userId="demo-user"
+            mode="schedule"
+          />
+        </div>
+      )}
+
+      {/* Week Template Mode */}
+      {mode === 'week-template' && (
         <>
 
       {/* Template Info */}
