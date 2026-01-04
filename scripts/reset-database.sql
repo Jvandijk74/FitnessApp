@@ -63,9 +63,13 @@ create table if not exists run_logged (
   max_hr integer,
   rpe integer,
   source text default 'manual' check (source in ('manual', 'strava')),
+  strava_activity_id text,
   activity_date timestamptz default now(),
   created_at timestamptz default now()
 );
+
+-- Add index for strava_activity_id lookups
+create index if not exists idx_run_logged_strava_activity_id on run_logged(strava_activity_id);
 
 -- Strength exercises prescriptions/logs
 create table if not exists strength_exercises (
