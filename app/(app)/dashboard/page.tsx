@@ -5,6 +5,7 @@ import { InsightFeed } from '@/components/insights/InsightFeed';
 import { AICoach } from '@/components/chat/AICoach';
 import { StravaConnect } from '@/components/integrations/StravaConnect';
 import { StatsCard } from '@/components/stats/StatsCard';
+import { WeeklyTrainingPlan } from '@/components/dashboard/WeeklyTrainingPlan';
 import { generateWeeklyPlan } from '@/lib/coach/engine';
 import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
@@ -154,7 +155,10 @@ export default async function DashboardPage() {
         athleteId={stravaConnection?.athleteId}
       />
 
-      {/* Weekly Training Timeline */}
+      {/* Weekly Training Plan */}
+      <WeeklyTrainingPlan userId={DEMO_USER} />
+
+      {/* Weekly Training Timeline (Old AI-generated plan) */}
       <TrainingTimeline plan={plan} />
 
       {/* Insights Feed */}
