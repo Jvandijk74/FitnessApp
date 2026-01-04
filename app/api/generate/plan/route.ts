@@ -6,8 +6,10 @@ interface PlanGenerationRequest {
   userId: string;
   experience: 'beginner' | 'intermediate' | 'advanced';
   frequency: number; // days per week
+  sessionDuration?: string; // NEW: e.g., "60 minutes"
   goals: string[]; // e.g., ['hypertrophy', 'strength']
   focusAreas: string[]; // muscle groups
+  otherSports?: string; // NEW: other sports they do
   limitations: string;
   equipment: string[];
 }
@@ -54,8 +56,10 @@ export async function POST(request: NextRequest) {
 **Athlete Profile:**
 - Experience Level: ${data.experience}
 - Training Frequency: ${data.frequency} days per week
+- Session Duration: ${data.sessionDuration || 'Not specified'}
 - Goals: ${data.goals.join(', ')}
 - Focus Areas: ${data.focusAreas.join(', ')}
+- Other Sports/Activities: ${data.otherSports || 'None'}
 - Limitations/Injuries: ${data.limitations || 'None'}
 - Available Equipment: ${data.equipment.join(', ')}
 
@@ -83,6 +87,8 @@ ${Object.entries(exercisesByGroup).map(([group, exs]) =>
    - ${data.experience === 'advanced' ? 'Advanced techniques, higher volume, periodization' : ''}
    - ${data.goals.includes('hypertrophy') ? 'Focus on 8-15 rep range, higher volume' : ''}
    - ${data.goals.includes('strength') ? 'Focus on 3-6 rep range, lower volume, longer rest' : ''}
+   - ${data.sessionDuration ? `Each workout should fit within ${data.sessionDuration} including warm-up` : ''}
+   - ${data.otherSports ? `Account for recovery needs from: ${data.otherSports}. Adjust volume accordingly.` : ''}
 
 5. Return ONLY a valid JSON object in this exact format:
 {

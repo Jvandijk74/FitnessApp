@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { EditablePlan } from './EditablePlan';
 
 interface Question {
   id: string;
@@ -12,8 +13,10 @@ interface Question {
 interface Answers {
   experience?: 'beginner' | 'intermediate' | 'advanced';
   frequency?: number;
+  sessionDuration?: number; // NEW: minutes per session
   goals?: string[];
   focusAreas?: string[];
+  otherSports?: string; // NEW: other sports they do
   limitations?: string;
   equipment?: string[];
 }
@@ -55,6 +58,12 @@ const QUESTIONS: Question[] = [
     type: 'number',
   },
   {
+    id: 'sessionDuration',
+    question: 'How long should each training session be?',
+    type: 'single',
+    options: ['30 minutes', '45 minutes', '60 minutes', '75 minutes', '90+ minutes']
+  },
+  {
     id: 'goals',
     question: 'What are your primary training goals? (Select all that apply)',
     type: 'multiple',
@@ -65,6 +74,11 @@ const QUESTIONS: Question[] = [
     question: 'Which muscle groups do you want to prioritize?',
     type: 'multiple',
     options: ['Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core']
+  },
+  {
+    id: 'otherSports',
+    question: 'Do you combine strength training with other sports or activities?',
+    type: 'text',
   },
   {
     id: 'equipment',
@@ -84,8 +98,10 @@ export function AIPlanGenerator({ userId, onPlanGenerated }: AIPlanGeneratorProp
   const [answers, setAnswers] = useState<Answers>({});
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedPlan, setGeneratedPlan] = useState<GeneratedPlan | null>(null);
+  const [availableExercises, setAvailableExercises] = useState<Array<{ name: string; muscle_group: string }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const currentQuestion = QUESTIONS[currentStep];
   const isLastQuestion = currentStep === QUESTIONS.length - 1;
@@ -128,8 +144,10 @@ export function AIPlanGenerator({ userId, onPlanGenerated }: AIPlanGeneratorProp
           userId,
           experience: answers.experience,
           frequency: answers.frequency,
+          sessionDuration: answers.sessionDuration,
           goals: answers.goals || [],
           focusAreas: answers.focusAreas || [],
+          otherSports: answers.otherSports || '',
           limitations: answers.limitations || '',
           equipment: answers.equipment || [],
         }),
@@ -145,6 +163,8 @@ export function AIPlanGenerator({ userId, onPlanGenerated }: AIPlanGeneratorProp
       console.log('   Plan:', data.plan.planName);
 
       setGeneratedPlan(data.plan);
+      setAvailableExercises(data.availableExercises || []);
+      setIsEditing(true); // Start in edit mode
       if (onPlanGenerated) {
         onPlanGenerated(data.plan);
       }
@@ -192,74 +212,18 @@ export function AIPlanGenerator({ userId, onPlanGenerated }: AIPlanGeneratorProp
     );
   }
 
-  if (generatedPlan) {
+  if (generatedPlan && isEditing) {
     return (
-      <div className="space-y-6">
-        <div className="card">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h3 className="text-2xl font-bold text-text-primary">{generatedPlan.planName}</h3>
-              <p className="text-text-secondary mt-1">{generatedPlan.description}</p>
-            </div>
-            <button
-              onClick={resetQuestionnaire}
-              className="btn btn-secondary"
-            >
-              Create New Plan
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            {generatedPlan.days.map((day, dayIndex) => (
-              <div key={dayIndex} className="bg-surface-elevated rounded-lg p-6 border border-primary-500/20">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="text-lg font-bold text-primary-400 capitalize">{day.dayOfWeek}</h4>
-                    <p className="text-sm text-text-tertiary">{day.name}</p>
-                  </div>
-                  <span className="px-3 py-1 bg-primary-500/20 text-primary-400 rounded-full text-sm font-medium">
-                    {day.exercises.length} exercises
-                  </span>
-                </div>
-
-                <div className="space-y-3">
-                  {day.exercises.map((exercise, exIndex) => (
-                    <div key={exIndex} className="bg-surface-base rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <h5 className="font-semibold text-text-primary">{exercise.exerciseName}</h5>
-                        <span className="text-xs px-2 py-1 bg-accent-500/20 text-accent-400 rounded">
-                          RPE {exercise.targetRPE}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-4 gap-3 text-sm mb-2">
-                        <div>
-                          <p className="text-text-tertiary text-xs">Sets</p>
-                          <p className="text-text-primary font-medium">{exercise.sets}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-tertiary text-xs">Reps</p>
-                          <p className="text-text-primary font-medium">{exercise.reps}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-tertiary text-xs">Tempo</p>
-                          <p className="text-text-primary font-medium">{exercise.tempo}</p>
-                        </div>
-                        <div>
-                          <p className="text-text-tertiary text-xs">Rest</p>
-                          <p className="text-text-primary font-medium">{exercise.rest}</p>
-                        </div>
-                      </div>
-                      {exercise.notes && (
-                        <p className="text-xs text-text-secondary italic">💡 {exercise.notes}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <EditablePlan
+        initialPlan={generatedPlan}
+        userId={userId}
+        availableExercises={availableExercises}
+        onSave={(plan) => {
+          console.log('✅ Plan saved as template');
+          setIsEditing(false);
+        }}
+        onCancel={resetQuestionnaire}
+      />
     );
   }
 
@@ -363,7 +327,11 @@ export function AIPlanGenerator({ userId, onPlanGenerated }: AIPlanGeneratorProp
               onChange={(e) => handleAnswer(e.target.value)}
               className="w-full px-4 py-3 bg-surface-elevated border border-surface-elevated rounded-lg focus:outline-none focus:border-primary-500"
               rows={4}
-              placeholder="Describe any injuries or limitations... (optional)"
+              placeholder={
+                currentQuestion.id === 'otherSports'
+                  ? 'e.g., Running 3x/week, Soccer on weekends, Cycling... (optional)'
+                  : 'Describe any injuries or limitations... (optional)'
+              }
             />
           </div>
         )}
