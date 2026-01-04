@@ -241,8 +241,12 @@ export async function getMonthlyAnalytics(userId: string) {
 
     console.log('[Metrics] Monthly analytics calculated');
 
+    // Also get weekly stats for summary cards
+    const weeklyStats = await getWeeklyStats(userId);
+
     return {
       weeklyData: monthlyData, // Keep name for backward compatibility
+      weeklyStats, // NEW: Current week stats for summary cards
       totals: {
         distance: totalDistance,
         runs: totalRuns,
@@ -271,6 +275,7 @@ export async function getMonthlyAnalytics(userId: string) {
         { month: monthNames[(now.getMonth() - 1 + 12) % 12], distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
         { month: monthNames[now.getMonth()], distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
       ],
+      weeklyStats: { totalDistance: 0, totalRuns: 0, averagePace: 0, averageHR: 0, totalDuration: 0 },
       totals: { distance: 0, runs: 0, duration: 0, avgPace: 0 },
       insights: { bestWeek: 0, bestWeekName: monthNames[now.getMonth()], consistency: 0, improvement: 0 },
     };

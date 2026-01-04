@@ -9,7 +9,7 @@ export default async function AnalyticsPage() {
   const analytics = await getMonthlyAnalytics(DEMO_USER);
   const healthMetrics = await calculateHealthMetrics(DEMO_USER);
 
-  const { weeklyData, totals, insights } = analytics;
+  const { weeklyData, weeklyStats, totals, insights } = analytics;
 
   return (
     <div className="space-y-6">
@@ -22,23 +22,22 @@ export default async function AnalyticsPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
-          title="Total Distance (4mo)"
-          value={`${totals.distance.toFixed(1)} km`}
+          title="Total Distance (week)"
+          value={`${weeklyStats.totalDistance.toFixed(1)} km`}
           icon="🏃"
-          trend={insights.improvement > 0 ? { value: insights.improvement, isPositive: true } : undefined}
           variant="default"
         />
         <StatsCard
-          title="Total Runs (4mo)"
-          value={totals.runs.toString()}
+          title="Total Runs (week)"
+          value={weeklyStats.totalRuns.toString()}
           icon="💪"
           variant="success"
         />
         <StatsCard
-          title="Avg Pace"
+          title="Avg Pace (week)"
           value={
-            totals.avgPace > 0
-              ? `${Math.floor(totals.avgPace)}:${String(Math.round((totals.avgPace % 1) * 60)).padStart(2, '0')} /km`
+            weeklyStats.averagePace > 0
+              ? `${Math.floor(weeklyStats.averagePace)}:${String(Math.round((weeklyStats.averagePace % 1) * 60)).padStart(2, '0')} /km`
               : 'N/A'
           }
           icon="⚡"
@@ -65,20 +64,20 @@ export default async function AnalyticsPage() {
           <h3 className="text-lg font-semibold text-text-primary mb-4">Monthly Distance</h3>
           <div className="h-64 flex items-end justify-between gap-3 px-2">
             {weeklyData.map((month, i) => {
-              // Calculate height based on max distance in the dataset
+              // Calculate height as percentage of container
               const maxDistance = Math.max(...weeklyData.map(w => w.distance), 1);
               const heightPercent = month.distance > 0
-                ? Math.max(15, (month.distance / maxDistance) * 100)
-                : 5;
+                ? Math.max(10, (month.distance / maxDistance) * 85) // Max 85% to leave room for labels
+                : 3;
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full relative">
+                  <div className="w-full relative" style={{ height: '180px' }}>
                     <div
-                      className="w-full bg-gradient-to-t from-accent-500 to-accent-400 rounded-t-lg shadow-lg group cursor-pointer hover:from-accent-400 hover:to-accent-300 transition-all duration-300"
-                      style={{ height: `${heightPercent * 2.5}px`, minHeight: month.distance > 0 ? '20px' : '5px' }}
+                      className="w-full bg-gradient-to-t from-accent-500 to-accent-400 rounded-t-lg shadow-lg group cursor-pointer hover:from-accent-400 hover:to-accent-300 transition-all duration-300 absolute bottom-0"
+                      style={{ height: `${heightPercent}%` }}
                     >
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-accent-500/30 shadow-lg">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-accent-500/30 shadow-lg z-10">
                         {month.distance > 0 ? `${month.distance} km` : 'No data'}
                       </div>
                     </div>
@@ -109,17 +108,17 @@ export default async function AnalyticsPage() {
 
               // Lower pace is better (faster), so invert the height calculation
               const heightPercent = pace > 0 && maxPace > minPace
-                ? Math.max(15, ((maxPace - pace) / (maxPace - minPace)) * 90 + 10)
-                : 5;
+                ? Math.max(10, ((maxPace - pace) / (maxPace - minPace)) * 75 + 10) // Max 85% to leave room
+                : 3;
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full relative">
+                  <div className="w-full relative" style={{ height: '180px' }}>
                     <div
-                      className="w-full bg-gradient-to-t from-primary-500 to-primary-400 rounded-t-lg shadow-lg group cursor-pointer hover:from-primary-400 hover:to-primary-300 transition-all duration-300"
-                      style={{ height: `${heightPercent * 2.5}px`, minHeight: pace > 0 ? '20px' : '5px' }}
+                      className="w-full bg-gradient-to-t from-primary-500 to-primary-400 rounded-t-lg shadow-lg group cursor-pointer hover:from-primary-400 hover:to-primary-300 transition-all duration-300 absolute bottom-0"
+                      style={{ height: `${heightPercent}%` }}
                     >
-                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-primary-500/30 shadow-lg">
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-primary-500/30 shadow-lg z-10">
                         {pace > 0
                           ? `${Math.floor(pace)}:${String(Math.round((pace % 1) * 60)).padStart(2, '0')} /km`
                           : 'No data'}
@@ -176,17 +175,17 @@ export default async function AnalyticsPage() {
               const avgHR = month.avgHR || 0;
               const maxHR = Math.max(...weeklyData.map(w => w.avgHR || 0), 1);
               const heightPercent = avgHR > 0
-                ? Math.max(15, (avgHR / maxHR) * 100)
-                : 5;
+                ? Math.max(10, (avgHR / maxHR) * 85)
+                : 3;
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full relative">
+                  <div className="w-full relative" style={{ height: '140px' }}>
                     <div
-                      className="w-full bg-gradient-to-t from-semantic-error to-semantic-error/80 rounded-t-lg shadow-md group cursor-pointer hover:from-semantic-error/90 hover:to-semantic-error/70 transition-all duration-300"
-                      style={{ height: `${heightPercent * 1.8}px`, minHeight: avgHR > 0 ? '15px' : '5px' }}
+                      className="w-full bg-gradient-to-t from-semantic-error to-semantic-error/80 rounded-t-lg shadow-md group cursor-pointer hover:from-semantic-error/90 hover:to-semantic-error/70 transition-all duration-300 absolute bottom-0"
+                      style={{ height: `${heightPercent}%` }}
                     >
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-semantic-error/30 shadow-lg">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-semantic-error/30 shadow-lg z-10">
                         {avgHR > 0 ? `${avgHR} bpm` : 'No data'}
                       </div>
                     </div>
@@ -215,17 +214,17 @@ export default async function AnalyticsPage() {
               // For now, derive from pace as a proxy: harder effort = faster pace
               const effort = month.avgPace > 0 ? Math.round(10 - (month.avgPace - 4)) : 0;
               const heightPercent = effort > 0
-                ? Math.max(15, (effort / 10) * 100)
-                : 5;
+                ? Math.max(10, (effort / 10) * 85)
+                : 3;
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full relative">
+                  <div className="w-full relative" style={{ height: '140px' }}>
                     <div
-                      className="w-full bg-gradient-to-t from-semantic-warning to-semantic-warning/80 rounded-t-lg shadow-md group cursor-pointer hover:from-semantic-warning/90 hover:to-semantic-warning/70 transition-all duration-300"
-                      style={{ height: `${heightPercent * 1.8}px`, minHeight: effort > 0 ? '15px' : '5px' }}
+                      className="w-full bg-gradient-to-t from-semantic-warning to-semantic-warning/80 rounded-t-lg shadow-md group cursor-pointer hover:from-semantic-warning/90 hover:to-semantic-warning/70 transition-all duration-300 absolute bottom-0"
+                      style={{ height: `${heightPercent}%` }}
                     >
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-semantic-warning/30 shadow-lg">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-semantic-warning/30 shadow-lg z-10">
                         {effort > 0 ? `${effort}/10 RPE` : 'No data'}
                       </div>
                     </div>
@@ -254,17 +253,17 @@ export default async function AnalyticsPage() {
               const longestRun = month.distance > 0 ? Math.round(month.distance * 0.4 * 10) / 10 : 0;
               const maxLongest = Math.max(...weeklyData.map(w => w.distance > 0 ? w.distance * 0.4 : 0), 1);
               const heightPercent = longestRun > 0
-                ? Math.max(15, (longestRun / maxLongest) * 100)
-                : 5;
+                ? Math.max(10, (longestRun / maxLongest) * 85)
+                : 3;
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full relative">
+                  <div className="w-full relative" style={{ height: '140px' }}>
                     <div
-                      className="w-full bg-gradient-to-t from-semantic-success to-semantic-success/80 rounded-t-lg shadow-md group cursor-pointer hover:from-semantic-success/90 hover:to-semantic-success/70 transition-all duration-300"
-                      style={{ height: `${heightPercent * 1.8}px`, minHeight: longestRun > 0 ? '15px' : '5px' }}
+                      className="w-full bg-gradient-to-t from-semantic-success to-semantic-success/80 rounded-t-lg shadow-md group cursor-pointer hover:from-semantic-success/90 hover:to-semantic-success/70 transition-all duration-300 absolute bottom-0"
+                      style={{ height: `${heightPercent}%` }}
                     >
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-semantic-success/30 shadow-lg">
+                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-semantic-success/30 shadow-lg z-10">
                         {longestRun > 0 ? `${longestRun} km` : 'No data'}
                       </div>
                     </div>
