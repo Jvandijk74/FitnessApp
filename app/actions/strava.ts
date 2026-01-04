@@ -99,7 +99,7 @@ export async function syncStravaActivities(userId: string) {
         const existingIds = new Set(existingRuns?.map(r => r.strava_activity_id) || []);
 
         // Filter out runs that already exist
-        const newRunLogs = runLogs.filter(log => !existingIds.has(log.strava_activity_id));
+        const newRunLogs = runLogs.filter((log: typeof runLogs[number]) => !existingIds.has(log.strava_activity_id));
 
         if (newRunLogs.length > 0) {
           const { error } = await supabase.from('run_logged').insert(newRunLogs);
