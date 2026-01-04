@@ -64,17 +64,32 @@ export default async function AnalyticsPage() {
         <div className="card">
           <h3 className="text-lg font-semibold text-text-primary mb-4">Weekly Distance</h3>
           <div className="h-64 flex items-end justify-between gap-4">
-            {weeklyData.map((week, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                <div className="w-full bg-surface-elevated rounded-t-lg relative group cursor-pointer hover:bg-primary-500/20 transition-colors"
-                  style={{ height: `${(week.distance / 50) * 100}%` }}>
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
-                    {week.distance} km
+            {weeklyData.map((week, i) => {
+              // Calculate height based on max distance in the dataset
+              const maxDistance = Math.max(...weeklyData.map(w => w.distance), 1);
+              const heightPercent = week.distance > 0
+                ? Math.max(10, (week.distance / maxDistance) * 100)
+                : 0;
+
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                  <div
+                    className="w-full bg-accent-500 rounded-t-lg relative group cursor-pointer hover:bg-accent-400 transition-colors"
+                    style={{ height: `${heightPercent}%` }}
+                  >
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
+                      {week.distance > 0 ? `${week.distance} km` : 'No data'}
+                    </div>
                   </div>
+                  <p className="text-xs text-text-tertiary">{week.week}</p>
+                  {week.distance > 0 && (
+                    <p className="text-xs font-medium text-accent-400">
+                      {week.distance} km
+                    </p>
+                  )}
                 </div>
-                <p className="text-xs text-text-tertiary">{week.week}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -84,14 +99,21 @@ export default async function AnalyticsPage() {
           <div className="h-64 flex items-end justify-between gap-4">
             {weeklyData.map((week, i) => {
               const pace = week.avgPace || 0;
+
+              // Calculate height based on pace relative to the dataset
+              const paces = weeklyData.filter(w => w.avgPace > 0).map(w => w.avgPace);
+              const minPace = paces.length > 0 ? Math.min(...paces) : 4;
+              const maxPace = paces.length > 0 ? Math.max(...paces) : 7;
+
               // Lower pace is better (faster), so invert the height calculation
-              // Assuming pace range between 4:00/km (fast) and 7:00/km (slow)
-              const heightPercent = pace > 0 ? Math.max(20, Math.min(100, ((7 - pace) / 3) * 100)) : 0;
+              const heightPercent = pace > 0 && maxPace > minPace
+                ? Math.max(10, ((maxPace - pace) / (maxPace - minPace)) * 90 + 10)
+                : 0;
 
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
                   <div
-                    className="w-full bg-primary-500/30 rounded-t-lg relative group cursor-pointer hover:bg-primary-500/40 transition-colors"
+                    className="w-full bg-primary-500 rounded-t-lg relative group cursor-pointer hover:bg-primary-400 transition-colors"
                     style={{ height: `${heightPercent}%` }}
                   >
                     <div className="absolute -top-12 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap">
