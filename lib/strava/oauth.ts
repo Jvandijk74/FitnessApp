@@ -173,51 +173,88 @@ export async function refreshAccessToken(refreshToken: string) {
 }
 
 export async function fetchRecentRuns(accessToken: string) {
-  console.log('[Strava OAuth] Fetching recent runs from Strava...');
+  console.log('[Strava OAuth] Fetching ALL runs from Strava with pagination...');
 
-  const res = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=20', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`
+  const allActivities: any[] = [];
+  let page = 1;
+  const perPage = 200; // Max allowed by Strava API
+  let hasMore = true;
+
+  try {
+    while (hasMore) {
+      console.log(`[Strava OAuth] Fetching page ${page}...`);
+
+      const res = await fetch(
+        `https://www.strava.com/api/v3/athlete/activities?per_page=${perPage}&page=${page}`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        }
+      );
+
+      if (!res.ok) {
+        const status = res.status;
+        const statusText = res.statusText;
+        let errorBody = '';
+
+        try {
+          errorBody = await res.text();
+        } catch (e) {
+          errorBody = 'Could not read error response';
+        }
+
+        console.error('[Strava OAuth] Failed to fetch activities:', {
+          status,
+          statusText,
+          body: errorBody
+        });
+
+        if (status === 401) {
+          throw new Error('Strava token expired or invalid');
+        }
+
+        throw new Error(`Failed to fetch Strava activities: ${status} ${statusText}`);
+      }
+
+      const activities = await res.json();
+      console.log(`[Strava OAuth] Fetched ${activities.length} activities on page ${page}`);
+
+      if (activities.length === 0) {
+        hasMore = false;
+      } else {
+        allActivities.push(...activities);
+
+        // If we got fewer activities than requested, we've reached the end
+        if (activities.length < perPage) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
     }
-  });
 
-  if (!res.ok) {
-    const status = res.status;
-    const statusText = res.statusText;
-    let errorBody = '';
+    console.log(`[Strava OAuth] Total activities fetched: ${allActivities.length}`);
 
-    try {
-      errorBody = await res.text();
-    } catch (e) {
-      errorBody = 'Could not read error response';
-    }
+    // Filter and map only running activities
+    const runs = allActivities
+      .filter((a: any) => a.type === 'Run')
+      .map((a: any) => ({
+        id: a.id,
+        distance_km: a.distance / 1000,
+        duration_minutes: Math.round(a.moving_time / 60),
+        avg_hr: a.average_heartrate,
+        max_hr: a.max_heartrate,
+        start_date: a.start_date
+      }));
 
-    console.error('[Strava OAuth] Failed to fetch activities:', {
-      status,
-      statusText,
-      body: errorBody
-    });
+    console.log(`[Strava OAuth] Filtered to ${runs.length} running activities`);
 
-    if (status === 401) {
-      throw new Error('Strava token expired or invalid');
-    }
-
-    throw new Error(`Failed to fetch Strava activities: ${status} ${statusText}`);
+    return runs;
+  } catch (error) {
+    console.error('[Strava OAuth] Exception fetching activities:', error);
+    throw error;
   }
-
-  const activities = await res.json();
-  console.log('[Strava OAuth] Fetched', activities.length, 'activities');
-
-  return activities
-    .filter((a: any) => a.type === 'Run')
-    .map((a: any) => ({
-      id: a.id,
-      distance_km: a.distance / 1000,
-      duration_minutes: Math.round(a.moving_time / 60),
-      avg_hr: a.average_heartrate,
-      max_hr: a.max_heartrate,
-      start_date: a.start_date
-    }));
 }
 
 export async function fetchAthleteStats(accessToken: string, athleteId: number) {

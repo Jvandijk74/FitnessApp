@@ -1,4 +1,17 @@
+import { StravaConnect } from '@/components/integrations/StravaConnect';
+import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
+
+const DEMO_USER = 'demo-user';
+
 export default async function SettingsPage() {
+  // Check Strava connection status
+  let stravaConnection = null;
+  try {
+    stravaConnection = await getStravaConnection(DEMO_USER);
+  } catch (error) {
+    console.error('[Settings] Error fetching Strava connection:', error);
+  }
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Page Header */}
@@ -94,28 +107,34 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* Integrations */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Integrations</h3>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-lg bg-surface-elevated">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">🏃</span>
-              <div>
-                <p className="font-medium text-text-primary">Strava</p>
-                <p className="text-sm text-text-tertiary">Sync your activities</p>
-              </div>
-            </div>
-            <span className="text-xs text-semantic-success px-2 py-1 rounded bg-semantic-success/10">
-              Connected
-            </span>
-          </div>
+      {/* Strava Integration */}
+      <StravaConnectWrapper
+        isConnected={!!stravaConnection}
+        athleteId={stravaConnection?.athleteId}
+      />
 
+      {/* Other Integrations */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-text-primary mb-4">Other Integrations</h3>
+        <div className="space-y-3">
           <div className="flex items-center justify-between p-3 rounded-lg bg-surface-elevated opacity-50">
             <div className="flex items-center gap-3">
               <span className="text-2xl">⌚</span>
               <div>
                 <p className="font-medium text-text-primary">Garmin</p>
+                <p className="text-sm text-text-tertiary">Coming soon</p>
+              </div>
+            </div>
+            <span className="text-xs text-text-tertiary px-2 py-1 rounded bg-surface">
+              Not available
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg bg-surface-elevated opacity-50">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💓</span>
+              <div>
+                <p className="font-medium text-text-primary">Apple Health</p>
                 <p className="text-sm text-text-tertiary">Coming soon</p>
               </div>
             </div>
@@ -132,5 +151,37 @@ export default async function SettingsPage() {
         <button className="btn-primary">Save Changes</button>
       </div>
     </div>
+  );
+}
+
+async function syncActivities() {
+  'use server';
+  try {
+    console.log('[Settings] syncActivities action called');
+    const result = await syncStravaActivities(DEMO_USER);
+    console.log('[Settings] syncActivities completed successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('[Settings] syncActivities failed:', error);
+    throw error;
+  }
+}
+
+function StravaConnectWrapper({
+  isConnected,
+  athleteId
+}: {
+  isConnected: boolean;
+  athleteId?: number;
+}) {
+  return (
+    <StravaConnect
+      isConnected={isConnected}
+      athleteId={athleteId}
+      onSync={async () => {
+        'use server';
+        await syncActivities();
+      }}
+    />
   );
 }

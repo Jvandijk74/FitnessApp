@@ -3,13 +3,11 @@ import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
 import { InsightFeed } from '@/components/insights/InsightFeed';
 import { AICoach } from '@/components/chat/AICoach';
-import { StravaConnect } from '@/components/integrations/StravaConnect';
 import { StatsCard } from '@/components/stats/StatsCard';
 import { WeeklyTrainingPlan } from '@/components/dashboard/WeeklyTrainingPlan';
 import { generateWeeklyPlan } from '@/lib/coach/engine';
 import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
-import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
 import { getWeeklyStats, calculateHealthMetrics, generateInsights } from '@/app/actions/metrics';
 import { assessInjuryRisk } from '@/app/actions/training-plan';
 import { TrainingDay } from '@/lib/db/types';
@@ -67,20 +65,6 @@ export default async function DashboardPage() {
     longRunMinutes: 75,
     highRpeCount: 1
   });
-
-  // Check Strava connection status
-  let stravaConnection = null;
-  try {
-    console.log('[Dashboard] Fetching Strava connection...');
-    stravaConnection = await getStravaConnection(DEMO_USER);
-    console.log('[Dashboard] Strava connection status:', stravaConnection ? 'Connected' : 'Not connected');
-  } catch (error) {
-    console.error('[Dashboard] Error fetching Strava connection:', error);
-    console.error('[Dashboard] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-  }
 
   return (
     <section className="space-y-6">
@@ -149,12 +133,6 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Strava Integration */}
-      <StravaConnectWrapper
-        isConnected={!!stravaConnection}
-        athleteId={stravaConnection?.athleteId}
-      />
-
       {/* Weekly Training Plan */}
       <WeeklyTrainingPlan userId={DEMO_USER} />
 
@@ -190,31 +168,4 @@ export default async function DashboardPage() {
       <AICoach compact />
     </section>
   );
-}
-
-async function syncActivities() {
-  'use server';
-  try {
-    console.log('[Dashboard] syncActivities action called');
-    const result = await syncStravaActivities(DEMO_USER);
-    console.log('[Dashboard] syncActivities completed successfully:', result);
-    return result;
-  } catch (error) {
-    console.error('[Dashboard] syncActivities failed:', error);
-    console.error('[Dashboard] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-    throw error;
-  }
-}
-
-function StravaConnectWrapper({
-  isConnected,
-  athleteId
-}: {
-  isConnected: boolean;
-  athleteId?: number;
-}) {
-  return <StravaConnect isConnected={isConnected} athleteId={athleteId} onSync={syncActivities} />;
 }
