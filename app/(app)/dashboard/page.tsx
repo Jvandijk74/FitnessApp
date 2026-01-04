@@ -1,12 +1,9 @@
-import { TrainingTimeline } from '@/components/plan/TrainingTimeline';
 import { RunLogForm } from '@/components/logging/RunLogForm';
 import { StrengthLogForm } from '@/components/logging/StrengthLogForm';
 import { InsightFeed } from '@/components/insights/InsightFeed';
 import { AICoach } from '@/components/chat/AICoach';
 import { StatsCard } from '@/components/stats/StatsCard';
 import { WeeklyTrainingPlan } from '@/components/dashboard/WeeklyTrainingPlan';
-import { generateWeeklyPlan } from '@/lib/coach/engine';
-import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
 import { getWeeklyStats, calculateHealthMetrics, generateInsights } from '@/app/actions/metrics';
 import { assessInjuryRisk } from '@/app/actions/training-plan';
@@ -51,20 +48,6 @@ export default async function DashboardPage() {
   const healthMetrics = await calculateHealthMetrics(DEMO_USER);
   const insights = await generateInsights(DEMO_USER);
   const injuryRisk = await assessInjuryRisk(DEMO_USER);
-
-  const profile: AthleteProfile = {
-    id: DEMO_USER,
-    thresholdPace: 4.9,
-    thresholdHr: 170,
-    readinessScore: 0.62,
-    recentRpeAverage: 6.5
-  };
-
-  const plan = generateWeeklyPlan(profile, {
-    averageRunMinutes: weeklyStats.totalDuration / Math.max(1, weeklyStats.totalRuns) || 42,
-    longRunMinutes: 75,
-    highRpeCount: 1
-  });
 
   return (
     <section className="space-y-6">
@@ -135,9 +118,6 @@ export default async function DashboardPage() {
 
       {/* Weekly Training Plan */}
       <WeeklyTrainingPlan userId={DEMO_USER} />
-
-      {/* Weekly Training Timeline (Old AI-generated plan) */}
-      <TrainingTimeline plan={plan} />
 
       {/* Insights Feed */}
       <InsightFeed
