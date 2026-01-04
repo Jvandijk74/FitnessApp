@@ -22,14 +22,14 @@ export default async function AnalyticsPage() {
       {/* Summary Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
-          title="Total Distance (30d)"
+          title="Total Distance (4mo)"
           value={`${totals.distance.toFixed(1)} km`}
           icon="🏃"
           trend={insights.improvement > 0 ? { value: insights.improvement, isPositive: true } : undefined}
           variant="default"
         />
         <StatsCard
-          title="Total Runs (30d)"
+          title="Total Runs (4mo)"
           value={totals.runs.toString()}
           icon="💪"
           variant="success"
@@ -60,15 +60,15 @@ export default async function AnalyticsPage() {
 
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Weekly Distance Chart */}
+        {/* Monthly Distance Chart */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Weekly Distance</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Monthly Distance</h3>
           <div className="h-64 flex items-end justify-between gap-3 px-2">
-            {weeklyData.map((week, i) => {
+            {weeklyData.map((month, i) => {
               // Calculate height based on max distance in the dataset
               const maxDistance = Math.max(...weeklyData.map(w => w.distance), 1);
-              const heightPercent = week.distance > 0
-                ? Math.max(15, (week.distance / maxDistance) * 100)
+              const heightPercent = month.distance > 0
+                ? Math.max(15, (month.distance / maxDistance) * 100)
                 : 5;
 
               return (
@@ -76,17 +76,17 @@ export default async function AnalyticsPage() {
                   <div className="w-full relative">
                     <div
                       className="w-full bg-gradient-to-t from-accent-500 to-accent-400 rounded-t-lg shadow-lg group cursor-pointer hover:from-accent-400 hover:to-accent-300 transition-all duration-300"
-                      style={{ height: `${heightPercent * 2.5}px`, minHeight: week.distance > 0 ? '20px' : '5px' }}
+                      style={{ height: `${heightPercent * 2.5}px`, minHeight: month.distance > 0 ? '20px' : '5px' }}
                     >
                       <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-elevated px-2 py-1 rounded text-xs font-medium whitespace-nowrap border border-accent-500/30 shadow-lg">
-                        {week.distance > 0 ? `${week.distance} km` : 'No data'}
+                        {month.distance > 0 ? `${month.distance} km` : 'No data'}
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-text-tertiary">{week.week}</p>
-                  {week.distance > 0 && (
+                  <p className="text-xs text-text-tertiary">{month.month}</p>
+                  {month.distance > 0 && (
                     <p className="text-xs font-bold text-accent-400">
-                      {week.distance} km
+                      {month.distance} km
                     </p>
                   )}
                 </div>
@@ -97,10 +97,10 @@ export default async function AnalyticsPage() {
 
         {/* Pace Trends */}
         <div className="card">
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Avg Pace Per Week</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">Avg Pace Per Month</h3>
           <div className="h-64 flex items-end justify-between gap-3 px-2">
-            {weeklyData.map((week, i) => {
-              const pace = week.avgPace || 0;
+            {weeklyData.map((month, i) => {
+              const pace = month.avgPace || 0;
 
               // Calculate height based on pace relative to the dataset
               const paces = weeklyData.filter(w => w.avgPace > 0).map(w => w.avgPace);
@@ -126,7 +126,7 @@ export default async function AnalyticsPage() {
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-text-tertiary">{week.week}</p>
+                  <p className="text-xs text-text-tertiary">{month.month}</p>
                   {pace > 0 && (
                     <p className="text-xs font-bold text-primary-400">
                       {Math.floor(pace)}:{String(Math.round((pace % 1) * 60)).padStart(2, '0')}
@@ -147,21 +147,21 @@ export default async function AnalyticsPage() {
         <h3 className="text-lg font-semibold text-text-primary mb-4">Performance Insights</h3>
         <div className="grid md:grid-cols-3 gap-4">
           <div className="p-4 rounded-lg bg-semantic-success/10 border border-semantic-success/20">
-            <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Best Week</p>
+            <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Best Month</p>
             <p className="text-2xl font-bold text-semantic-success">{insights.bestWeek.toFixed(1)} km</p>
             <p className="text-xs text-text-secondary mt-1">{insights.bestWeekName}</p>
           </div>
           <div className="p-4 rounded-lg bg-primary-500/10 border border-primary-500/20">
             <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Consistency</p>
             <p className="text-2xl font-bold text-primary-400">{insights.consistency}%</p>
-            <p className="text-xs text-text-secondary mt-1">Weeks with at least one run</p>
+            <p className="text-xs text-text-secondary mt-1">Months with at least one run</p>
           </div>
           <div className="p-4 rounded-lg bg-accent-500/10 border border-accent-500/20">
             <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Volume Change</p>
             <p className="text-2xl font-bold text-accent-400">
               {insights.improvement > 0 ? '+' : ''}{insights.improvement}%
             </p>
-            <p className="text-xs text-text-secondary mt-1">vs previous week</p>
+            <p className="text-xs text-text-secondary mt-1">vs previous month</p>
           </div>
         </div>
       </div>
@@ -172,8 +172,8 @@ export default async function AnalyticsPage() {
         <div className="card">
           <h3 className="text-lg font-semibold text-text-primary mb-4">Heart Rate Trend</h3>
           <div className="h-48 flex items-end justify-between gap-2 px-2">
-            {weeklyData.map((week, i) => {
-              const avgHR = week.avgHR || 0;
+            {weeklyData.map((month, i) => {
+              const avgHR = month.avgHR || 0;
               const maxHR = Math.max(...weeklyData.map(w => w.avgHR || 0), 1);
               const heightPercent = avgHR > 0
                 ? Math.max(15, (avgHR / maxHR) * 100)
@@ -191,7 +191,7 @@ export default async function AnalyticsPage() {
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-text-tertiary">W{i + 1}</p>
+                  <p className="text-xs text-text-tertiary">{month.month.substring(0, 3)}</p>
                   {avgHR > 0 && (
                     <p className="text-xs font-bold text-semantic-error">
                       {avgHR}
@@ -202,7 +202,7 @@ export default async function AnalyticsPage() {
             })}
           </div>
           <div className="mt-4 text-xs text-text-tertiary text-center">
-            Average heart rate per week
+            Average heart rate per month
           </div>
         </div>
 
@@ -210,10 +210,10 @@ export default async function AnalyticsPage() {
         <div className="card">
           <h3 className="text-lg font-semibold text-text-primary mb-4">Workout Effort</h3>
           <div className="h-48 flex items-end justify-between gap-2 px-2">
-            {weeklyData.map((week, i) => {
-              // Calculate average RPE for the week (placeholder - we'd need to add this to weeklyData)
+            {weeklyData.map((month, i) => {
+              // Calculate average RPE for the month (placeholder - we'd need to add this to weeklyData)
               // For now, derive from pace as a proxy: harder effort = faster pace
-              const effort = week.avgPace > 0 ? Math.round(10 - (week.avgPace - 4)) : 0;
+              const effort = month.avgPace > 0 ? Math.round(10 - (month.avgPace - 4)) : 0;
               const heightPercent = effort > 0
                 ? Math.max(15, (effort / 10) * 100)
                 : 5;
@@ -230,7 +230,7 @@ export default async function AnalyticsPage() {
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-text-tertiary">W{i + 1}</p>
+                  <p className="text-xs text-text-tertiary">{month.month.substring(0, 3)}</p>
                   {effort > 0 && (
                     <p className="text-xs font-bold text-semantic-warning">
                       {effort}
@@ -245,13 +245,13 @@ export default async function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Longest Run per Week */}
+        {/* Longest Run per Month */}
         <div className="card">
           <h3 className="text-lg font-semibold text-text-primary mb-4">Longest Run</h3>
           <div className="h-48 flex items-end justify-between gap-2 px-2">
-            {weeklyData.map((week, i) => {
-              // For now, estimate longest run as ~40% of weekly distance (would need actual data)
-              const longestRun = week.distance > 0 ? Math.round(week.distance * 0.4 * 10) / 10 : 0;
+            {weeklyData.map((month, i) => {
+              // For now, estimate longest run as ~40% of monthly distance (would need actual data)
+              const longestRun = month.distance > 0 ? Math.round(month.distance * 0.4 * 10) / 10 : 0;
               const maxLongest = Math.max(...weeklyData.map(w => w.distance > 0 ? w.distance * 0.4 : 0), 1);
               const heightPercent = longestRun > 0
                 ? Math.max(15, (longestRun / maxLongest) * 100)
@@ -269,7 +269,7 @@ export default async function AnalyticsPage() {
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs text-text-tertiary">W{i + 1}</p>
+                  <p className="text-xs text-text-tertiary">{month.month.substring(0, 3)}</p>
                   {longestRun > 0 && (
                     <p className="text-xs font-bold text-semantic-success">
                       {longestRun} km
@@ -280,7 +280,7 @@ export default async function AnalyticsPage() {
             })}
           </div>
           <div className="mt-4 text-xs text-text-tertiary text-center">
-            Longest single run per week
+            Longest single run per month
           </div>
         </div>
       </div>

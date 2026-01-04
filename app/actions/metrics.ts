@@ -178,67 +178,71 @@ export async function getMonthlyAnalytics(userId: string) {
     console.log('[Metrics] Calculating monthly analytics for user:', userId);
     const supabase = await getServerSupabase();
 
-    // Get last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Get last 120 days to ensure we have 4 full months of data
+    const fourMonthsAgo = new Date();
+    fourMonthsAgo.setMonth(fourMonthsAgo.getMonth() - 4);
 
     const { data: runs, error } = await supabase
       .from('run_logged')
       .select('*')
       .eq('user_id', userId)
-      .gte('activity_date', thirtyDaysAgo.toISOString())
+      .gte('activity_date', fourMonthsAgo.toISOString())
       .order('activity_date', { ascending: true });
 
     if (error) throw error;
 
-    // Calculate weekly data for the last 4 weeks
-    const weeklyData = [];
-    for (let i = 3; i >= 0; i--) {
-      const weekStart = new Date();
-      weekStart.setDate(weekStart.getDate() - (i * 7 + 7));
-      const weekEnd = new Date();
-      weekEnd.setDate(weekEnd.getDate() - (i * 7));
+    // Calculate monthly data for the last 4 months
+    const monthlyData = [];
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
 
-      const weekRuns = runs?.filter(r => {
+    for (let i = 3; i >= 0; i--) {
+      const monthDate = new Date();
+      monthDate.setMonth(monthDate.getMonth() - i);
+
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59);
+
+      const monthRuns = runs?.filter(r => {
         const date = new Date(r.activity_date);
-        return date >= weekStart && date < weekEnd;
+        return date >= monthStart && date <= monthEnd;
       }) || [];
 
-      const distance = weekRuns.reduce((sum, r) => sum + (r.distance_km || 0), 0);
-      const duration = weekRuns.reduce((sum, r) => sum + (r.duration_minutes || 0), 0);
-      const avgHR = weekRuns.filter(r => r.avg_hr).length > 0
-        ? weekRuns.reduce((sum, r) => sum + (r.avg_hr || 0), 0) / weekRuns.filter(r => r.avg_hr).length
+      const distance = monthRuns.reduce((sum, r) => sum + (r.distance_km || 0), 0);
+      const duration = monthRuns.reduce((sum, r) => sum + (r.duration_minutes || 0), 0);
+      const avgHR = monthRuns.filter(r => r.avg_hr).length > 0
+        ? monthRuns.reduce((sum, r) => sum + (r.avg_hr || 0), 0) / monthRuns.filter(r => r.avg_hr).length
         : 0;
       const avgPace = distance > 0 ? duration / distance : 0; // min/km
 
-      weeklyData.push({
-        week: `Week ${4 - i}`,
+      monthlyData.push({
+        month: monthNames[monthDate.getMonth()],
         distance: Math.round(distance * 10) / 10,
         avgHR: Math.round(avgHR),
         avgPace: Math.round(avgPace * 100) / 100, // Round to 2 decimals
-        runs: weekRuns.length,
+        runs: monthRuns.length,
       });
     }
 
-    // Calculate totals
+    // Calculate totals for last 120 days
     const totalDistance = runs?.reduce((sum, r) => sum + (r.distance_km || 0), 0) || 0;
     const totalRuns = runs?.length || 0;
     const totalDuration = runs?.reduce((sum, r) => sum + (r.duration_minutes || 0), 0) || 0;
     const avgPace = totalDistance > 0 ? totalDuration / totalDistance : 0;
 
-    // Find best week
-    const bestWeek = weeklyData.reduce((best, week) =>
-      week.distance > best.distance ? week : best
-    , weeklyData[0]);
+    // Find best month
+    const bestMonth = monthlyData.reduce((best, month) =>
+      month.distance > best.distance ? month : best
+    , monthlyData[0]);
 
-    // Calculate consistency (weeks with at least 1 run)
-    const weeksWithRuns = weeklyData.filter(w => w.runs > 0).length;
-    const consistency = (weeksWithRuns / 4) * 100;
+    // Calculate consistency (months with at least 1 run)
+    const monthsWithRuns = monthlyData.filter(m => m.runs > 0).length;
+    const consistency = (monthsWithRuns / 4) * 100;
 
     console.log('[Metrics] Monthly analytics calculated');
 
     return {
-      weeklyData,
+      weeklyData: monthlyData, // Keep name for backward compatibility
       totals: {
         distance: totalDistance,
         runs: totalRuns,
@@ -246,25 +250,29 @@ export async function getMonthlyAnalytics(userId: string) {
         avgPace,
       },
       insights: {
-        bestWeek: bestWeek.distance,
-        bestWeekName: bestWeek.week,
+        bestWeek: bestMonth.distance,
+        bestWeekName: bestMonth.month,
         consistency: Math.round(consistency),
-        improvement: weeklyData[3].distance > weeklyData[0].distance
-          ? Math.round(((weeklyData[3].distance - weeklyData[0].distance) / (weeklyData[0].distance || 1)) * 100)
+        improvement: monthlyData[3].distance > monthlyData[0].distance
+          ? Math.round(((monthlyData[3].distance - monthlyData[0].distance) / (monthlyData[0].distance || 1)) * 100)
           : 0,
       },
     };
   } catch (error) {
     console.error('[Metrics] Exception in getMonthlyAnalytics:', error);
+    const now = new Date();
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+
     return {
       weeklyData: [
-        { week: 'Week 1', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
-        { week: 'Week 2', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
-        { week: 'Week 3', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
-        { week: 'Week 4', distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
+        { month: monthNames[(now.getMonth() - 3 + 12) % 12], distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
+        { month: monthNames[(now.getMonth() - 2 + 12) % 12], distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
+        { month: monthNames[(now.getMonth() - 1 + 12) % 12], distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
+        { month: monthNames[now.getMonth()], distance: 0, avgHR: 0, avgPace: 0, runs: 0 },
       ],
       totals: { distance: 0, runs: 0, duration: 0, avgPace: 0 },
-      insights: { bestWeek: 0, bestWeekName: 'Week 1', consistency: 0, improvement: 0 },
+      insights: { bestWeek: 0, bestWeekName: monthNames[now.getMonth()], consistency: 0, improvement: 0 },
     };
   }
 }
