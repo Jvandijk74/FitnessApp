@@ -13,10 +13,14 @@ import {
   calculateTemplateVolume,
   WorkoutTemplate
 } from '@/app/actions/templates';
+import { AIPlanGenerator } from '@/components/training/AIPlanGenerator';
 
 const DAYS: TrainingDay[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 
+type CreationMode = 'manual' | 'ai';
+
 export default function CreateTrainingPage() {
+  const [mode, setMode] = useState<CreationMode>('manual');
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
   const [currentDay, setCurrentDay] = useState<TrainingDay>('monday');
@@ -213,6 +217,49 @@ export default function CreateTrainingPage() {
         <h1 className="text-3xl font-bold text-text-primary mb-2">Create Training Plan</h1>
         <p className="text-text-secondary">Build your custom weekly workout template</p>
       </div>
+
+      {/* Mode Toggle */}
+      <div className="card">
+        <div className="flex gap-3">
+          <button
+            onClick={() => setMode('manual')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+              mode === 'manual'
+                ? 'bg-primary-500 text-white'
+                : 'bg-surface-elevated text-text-secondary hover:bg-surface-elevated/80'
+            }`}
+          >
+            <span className="mr-2">✏️</span>
+            Manual Creation
+          </button>
+          <button
+            onClick={() => setMode('ai')}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
+              mode === 'ai'
+                ? 'bg-primary-500 text-white'
+                : 'bg-surface-elevated text-text-secondary hover:bg-surface-elevated/80'
+            }`}
+          >
+            <span className="mr-2">🤖</span>
+            AI Generated
+          </button>
+        </div>
+      </div>
+
+      {/* AI Mode */}
+      {mode === 'ai' && (
+        <AIPlanGenerator
+          userId="demo-user"
+          onPlanGenerated={(plan) => {
+            console.log('Plan generated:', plan);
+            // TODO: Convert AI plan to manual template for editing
+          }}
+        />
+      )}
+
+      {/* Manual Mode */}
+      {mode === 'manual' && (
+        <>
 
       {/* Template Info */}
       <div className="card">
@@ -500,6 +547,8 @@ export default function CreateTrainingPage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* Activation Dialog */}
