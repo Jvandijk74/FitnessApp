@@ -6,6 +6,8 @@ import { VolumeTracking } from '@/components/plan/VolumeTracking';
 import { ProgressiveOverloadScore } from '@/components/plan/ProgressiveOverloadScore';
 import { TrainingDay } from '@/lib/db/types';
 import { getActiveTemplate, WorkoutTemplate, TemplateDay } from '@/app/actions/templates';
+import { getWeekWorkouts, CombinedDayWorkout } from '@/app/actions/plan-helpers';
+import { ScheduledWorkout, completeWorkout, getScheduledWorkout } from '@/app/actions/scheduled-workouts';
 import Link from 'next/link';
 
 interface Exercise {
@@ -170,6 +172,8 @@ export default function PlanPage() {
   const [loading, setLoading] = useState(true);
   const [activeTemplate, setActiveTemplate] = useState<WorkoutTemplate | null>(null);
   const [templateLoading, setTemplateLoading] = useState(true);
+  const [weekWorkouts, setWeekWorkouts] = useState<CombinedDayWorkout[]>([]);
+  const [workoutsLoading, setWorkoutsLoading] = useState(true);
 
   // Fetch volume data when week changes
   useEffect(() => {
@@ -225,7 +229,24 @@ export default function PlanPage() {
     fetchTemplate();
   }, [currentWeek, currentYear]);
 
-  // Convert template days to DayWorkout format
+  // Fetch combined workouts (scheduled + template) when week changes
+  useEffect(() => {
+    async function fetchWorkouts() {
+      setWorkoutsLoading(true);
+      try {
+        const workouts = await getWeekWorkouts('demo-user', currentWeek, currentYear);
+        setWeekWorkouts(workouts);
+      } catch (error) {
+        console.error('Error fetching week workouts:', error);
+      } finally {
+        setWorkoutsLoading(false);
+      }
+    }
+
+    fetchWorkouts();
+  }, [currentWeek, currentYear]);
+
+  // Convert template days to DayWorkout format (fallback if no weekWorkouts)
   const workouts: DayWorkout[] = activeTemplate?.days
     ? activeTemplate.days.map((day: TemplateDay) => ({
         day: day.day_of_week,
@@ -298,19 +319,413 @@ export default function PlanPage() {
 
       {/* Weekly Workouts */}
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold text-white">Weekly Schedule</h2>
-        {templateLoading ? (
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">Weekly Schedule</h2>
+          <Link href="/create-training?mode=schedule-workout" className="btn-secondary text-sm">
+            + Schedule Workout
+          </Link>
+        </div>
+        {workoutsLoading ? (
           <div className="card text-center py-12">
             <p className="text-white/60">Loading workout plan...</p>
           </div>
-        ) : (
+        ) : weekWorkouts.length > 0 ? (
           <div className="grid gap-4">
-            {workouts.map((workout) => (
-              <DayCard key={workout.day} workout={workout} />
+            {weekWorkouts.map((combinedWorkout) => (
+              <CombinedDayCard
+                key={combinedWorkout.day}
+                combinedWorkout={combinedWorkout}
+                onWorkoutCompleted={() => {
+                  // Refresh workouts after completion
+                  getWeekWorkouts('demo-user', currentWeek, currentYear).then(setWeekWorkouts);
+                }}
+              />
             ))}
+          </div>
+        ) : (
+          <div className="card text-center py-12">
+            <p className="text-2xl mb-2">📅</p>
+            <p className="text-white/60">No workouts scheduled for this week</p>
+            <Link href="/create-training" className="btn-primary mt-4">
+              Create Training Plan
+            </Link>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function CombinedDayCard({
+  combinedWorkout,
+  onWorkoutCompleted
+}: {
+  combinedWorkout: CombinedDayWorkout;
+  onWorkoutCompleted: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [loggedSets, setLoggedSets] = useState<{ [key: string]: LoggedSet[] }>({});
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [completing, setCompleting] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState('');
+
+  const dayLabels: Record<TrainingDay, string> = {
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+  };
+
+  const isScheduled = combinedWorkout.source === 'scheduled';
+  const scheduledWorkout = isScheduled ? (combinedWorkout.workout as ScheduledWorkout) : null;
+  const templateDay = !isScheduled ? (combinedWorkout.workout as TemplateDay) : null;
+
+  const workoutType = isScheduled ? scheduledWorkout!.workout_type : templateDay!.type;
+  const workoutName = isScheduled ? scheduledWorkout!.name : null;
+  const exercises = isScheduled ? scheduledWorkout!.exercises : templateDay!.exercises;
+  const isCompleted = isScheduled ? scheduledWorkout!.completed : false;
+  const hasFeedback = isScheduled && scheduledWorkout!.ai_feedback;
+
+  const addSet = (exerciseName: string) => {
+    setLoggedSets(prev => ({
+      ...prev,
+      [exerciseName]: [...(prev[exerciseName] || []), { weight: 0, reps: 0, rpe: 7 }]
+    }));
+  };
+
+  const updateSet = (exerciseName: string, setIndex: number, field: keyof LoggedSet, value: number) => {
+    setLoggedSets(prev => ({
+      ...prev,
+      [exerciseName]: prev[exerciseName].map((set, i) =>
+        i === setIndex ? { ...set, [field]: value } : set
+      )
+    }));
+  };
+
+  const removeSet = (exerciseName: string, setIndex: number) => {
+    setLoggedSets(prev => ({
+      ...prev,
+      [exerciseName]: prev[exerciseName].filter((_, i) => i !== setIndex)
+    }));
+  };
+
+  const getTotalVolume = () => {
+    let total = 0;
+    Object.values(loggedSets).forEach(sets => {
+      sets.forEach(set => {
+        total += set.weight * set.reps;
+      });
+    });
+    return total;
+  };
+
+  const handleCompleteWorkout = async () => {
+    if (!isScheduled || !scheduledWorkout?.id) return;
+
+    setCompleting(true);
+    try {
+      const result = await completeWorkout(scheduledWorkout.id, 'demo-user');
+      if (result.success) {
+        setShowFeedback(true);
+        setAiFeedback(result.feedback || '');
+        onWorkoutCompleted();
+        setTimeout(() => setExpanded(false), 3000);
+      } else {
+        alert('Failed to complete workout: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error completing workout:', error);
+      alert('Failed to complete workout');
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  const saveWorkout = async () => {
+    setSaving(true);
+    setSaveMessage('');
+
+    try {
+      // For template workouts, save to the old endpoint
+      if (!isScheduled && templateDay) {
+        for (const [exerciseName, sets] of Object.entries(loggedSets)) {
+          if (sets.length === 0) continue;
+
+          const response = await fetch('/api/plan/log-strength', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: 'demo-user',
+              day: templateDay.day_of_week,
+              exercise: exerciseName,
+              sets: sets.map(s => ({
+                weight: Number(s.weight),
+                reps: Number(s.reps),
+                rpe: s.rpe ? Number(s.rpe) : undefined,
+                rir: s.rir ? Number(s.rir) : undefined
+              }))
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to save ${exerciseName}`);
+          }
+        }
+      }
+      // For scheduled workouts, save logged sets and mark as complete
+      else if (isScheduled && scheduledWorkout?.id) {
+        // Save logged sets to scheduled_workout_exercises
+        // This would require a new endpoint - for now, we'll just complete the workout
+        await handleCompleteWorkout();
+        return;
+      }
+
+      setSaveMessage('✅ Workout saved successfully!');
+      setTimeout(() => {
+        setSaveMessage('');
+        setLoggedSets({});
+      }, 3000);
+    } catch (error) {
+      console.error('Error saving workout:', error);
+      setSaveMessage('❌ Failed to save workout. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className={`card ${isCompleted ? 'border-semantic-success/50' : ''}`}>
+      {/* Day Header */}
+      <div
+        className="flex items-center justify-between cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <div className="flex items-center gap-3 flex-1">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xl ${
+            workoutType === 'strength' ? 'bg-accent/20' :
+            workoutType === 'run' ? 'bg-primary/20' : 'bg-white/5'
+          }`}>
+            {workoutType === 'strength' ? '💪' : workoutType === 'run' ? '🏃' : '😴'}
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-white">{dayLabels[combinedWorkout.day_of_week]}</h3>
+              {isCompleted && <span className="text-semantic-success text-sm">✓ Completed</span>}
+              {isScheduled && <span className="text-xs text-primary px-2 py-0.5 rounded-full bg-primary/20">Scheduled</span>}
+            </div>
+            <p className="text-sm text-white/60">
+              {workoutName || (workoutType === 'strength' ? `${exercises?.length || 0} exercises` : workoutType === 'rest' ? 'Rest day' : 'Run workout')}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {workoutType === 'strength' && getTotalVolume() > 0 && (
+            <div className="text-right">
+              <p className="text-xs text-white/60">Total Volume</p>
+              <p className="text-lg font-bold text-accent">{getTotalVolume()} kg</p>
+            </div>
+          )}
+          <svg
+            className={`w-5 h-5 text-white/60 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
+
+      {/* AI Feedback Display */}
+      {hasFeedback && !expanded && (
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowFeedback(!showFeedback);
+            }}
+            className="text-sm text-primary-400 hover:text-primary-300"
+          >
+            {showFeedback ? '▼ Hide' : '▶'} AI Coaching Feedback
+          </button>
+          {showFeedback && (
+            <div className="mt-3 p-4 bg-primary/10 rounded-lg text-sm text-white/80 whitespace-pre-line border border-primary/20">
+              {scheduledWorkout!.ai_feedback}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Expanded Content */}
+      {expanded && workoutType === 'strength' && (
+        <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+          {exercises?.map((exercise: any, exIndex: number) => (
+            <div key={exIndex} className="border border-white/10 rounded-lg p-4">
+              {/* Exercise Header */}
+              <div className="mb-3">
+                <h4 className="font-semibold text-white">{exercise.exercise_name || exercise.name}</h4>
+                <p className="text-xs text-white/60 mt-1">
+                  Target: {exercise.sets || exercise.targetSets} sets × {exercise.reps || exercise.targetReps} reps
+                  {(exercise.tempo || exercise.targetTempo) && ` • Tempo ${exercise.tempo || exercise.targetTempo}`}
+                  {(exercise.rest || exercise.targetRest) && ` • Rest ${exercise.rest || exercise.targetRest}`}
+                  {(exercise.target_rpe || exercise.targetRpe) && ` • RPE ${exercise.target_rpe || exercise.targetRpe}`}
+                </p>
+                {(exercise.notes || exercise.targetNotes) && (
+                  <p className="text-xs text-primary mt-1">{exercise.notes || exercise.targetNotes}</p>
+                )}
+              </div>
+
+              {/* Logged Sets */}
+              {!isCompleted && (
+                <>
+                  {loggedSets[exercise.exercise_name || exercise.name] && loggedSets[exercise.exercise_name || exercise.name].length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {loggedSets[exercise.exercise_name || exercise.name].map((set, setIndex) => (
+                        <div key={setIndex} className="grid grid-cols-12 gap-2">
+                          <div className="col-span-1 flex items-center">
+                            <span className="text-sm font-medium text-white/70">{setIndex + 1}</span>
+                          </div>
+                          <div className="col-span-3">
+                            <input
+                              type="number"
+                              placeholder="Weight"
+                              value={set.weight || ''}
+                              onChange={(e) => updateSet(exercise.exercise_name || exercise.name, setIndex, 'weight', Number(e.target.value))}
+                              className="form-input w-full text-sm"
+                            />
+                          </div>
+                          <div className="col-span-3">
+                            <input
+                              type="number"
+                              placeholder="Reps"
+                              value={set.reps || ''}
+                              onChange={(e) => updateSet(exercise.exercise_name || exercise.name, setIndex, 'reps', Number(e.target.value))}
+                              className="form-input w-full text-sm"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              type="number"
+                              placeholder="RPE"
+                              value={set.rpe || ''}
+                              onChange={(e) => updateSet(exercise.exercise_name || exercise.name, setIndex, 'rpe', Number(e.target.value))}
+                              className="form-input w-full text-sm"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-xs text-white/60">
+                              {set.weight && set.reps ? `${set.weight * set.reps} kg` : '—'}
+                            </span>
+                          </div>
+                          <div className="col-span-1 flex items-center">
+                            <button
+                              onClick={() => removeSet(exercise.exercise_name || exercise.name, setIndex)}
+                              className="text-red-400 hover:text-red-300"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add Set Button */}
+                  <button
+                    onClick={() => addSet(exercise.exercise_name || exercise.name)}
+                    className="btn-secondary w-full text-sm"
+                  >
+                    + Add Set
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+
+          {/* Action Buttons */}
+          {!isCompleted && Object.keys(loggedSets).length > 0 && (
+            <div className="pt-4 border-t border-white/10 space-y-3">
+              {isScheduled ? (
+                <button
+                  onClick={handleCompleteWorkout}
+                  disabled={completing}
+                  className="btn-primary w-full"
+                >
+                  {completing ? 'Completing...' : '✓ Complete Workout & Get AI Feedback'}
+                </button>
+              ) : (
+                <button
+                  onClick={saveWorkout}
+                  disabled={saving}
+                  className="btn-primary w-full"
+                >
+                  {saving ? 'Saving...' : 'Save Workout'}
+                </button>
+              )}
+              {saveMessage && (
+                <p className="text-sm text-center">{saveMessage}</p>
+              )}
+            </div>
+          )}
+
+          {/* Show AI Feedback After Completion */}
+          {showFeedback && aiFeedback && (
+            <div className="pt-4 border-t border-white/10">
+              <h4 className="font-semibold text-primary-400 mb-3">🤖 AI Coaching Feedback</h4>
+              <div className="p-4 bg-primary/10 rounded-lg text-sm text-white/80 whitespace-pre-line border border-primary/20">
+                {aiFeedback}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Running Workout Details */}
+      {expanded && workoutType === 'run' && isScheduled && scheduledWorkout && (
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            {scheduledWorkout.run_duration_minutes && (
+              <div>
+                <p className="text-white/60">Duration</p>
+                <p className="text-white font-semibold">{scheduledWorkout.run_duration_minutes} min</p>
+              </div>
+            )}
+            {scheduledWorkout.run_distance_km && (
+              <div>
+                <p className="text-white/60">Distance</p>
+                <p className="text-white font-semibold">{scheduledWorkout.run_distance_km} km</p>
+              </div>
+            )}
+            {scheduledWorkout.run_intensity && (
+              <div>
+                <p className="text-white/60">Intensity</p>
+                <p className="text-white font-semibold">{scheduledWorkout.run_intensity}</p>
+              </div>
+            )}
+            {scheduledWorkout.run_target_rpe && (
+              <div>
+                <p className="text-white/60">Target RPE</p>
+                <p className="text-white font-semibold">{scheduledWorkout.run_target_rpe}/10</p>
+              </div>
+            )}
+          </div>
+          {!isCompleted && (
+            <button
+              onClick={handleCompleteWorkout}
+              disabled={completing}
+              className="btn-primary w-full mt-4"
+            >
+              {completing ? 'Completing...' : '✓ Mark as Complete'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
