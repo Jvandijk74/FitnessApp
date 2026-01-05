@@ -164,11 +164,12 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
             const runPace = isScheduled ? scheduledWorkout!.run_target_pace : undefined;
 
             return (
-              <div
+              <Link
                 key={combinedWorkout.day}
-                className="flex-none w-72 snap-start"
+                href="/plan"
+                className="flex-none w-72 snap-start block"
               >
-                <div className={`h-full p-5 rounded-xl border-2 transition-all ${
+                <div className={`h-full p-5 rounded-xl border-2 transition-all hover:border-primary-500/50 cursor-pointer ${
                   isToday ? 'bg-primary-500/5 border-primary-500/30' : typeColors[workoutType]
                 }`}>
                   {/* Day Header */}
@@ -254,7 +255,7 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
                     )}
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

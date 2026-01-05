@@ -71,7 +71,8 @@ export async function getWeekWorkouts(
     const combined: CombinedDayWorkout[] = [];
 
     dayOrder.forEach((dayOfWeek, index) => {
-      const dateForDay = dates[(index + 1) % 7]; // Adjust for week starting on Monday
+      // dates array is already in Monday-Sunday order, so just use index directly
+      const dateForDay = dates[index];
 
       // Check if there's a scheduled workout for this day
       if (scheduledByDay.has(dayOfWeek)) {
@@ -95,18 +96,7 @@ export async function getWeekWorkouts(
           });
         }
       }
-      // If neither, create a rest day placeholder
-      else {
-        combined.push({
-          day: dateForDay,
-          day_of_week: dayOfWeek,
-          source: 'template',
-          workout: {
-            day_of_week: dayOfWeek,
-            type: 'rest'
-          } as TemplateDay
-        });
-      }
+      // If neither, skip (don't show rest days in carousel)
     });
 
     return combined;

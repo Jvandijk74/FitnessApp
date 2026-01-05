@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DayTemplate, getDayTemplates, scheduleFromTemplate } from '@/app/actions/scheduled-workouts';
+import { DayTemplate, getDayTemplates, scheduleFromTemplate, deleteDayTemplate } from '@/app/actions/scheduled-workouts';
 
 interface TemplateLibraryProps {
   userId: string;
@@ -53,6 +53,26 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
       alert('Failed to schedule workout');
     } finally {
       setScheduling(false);
+    }
+  }
+
+  async function handleDelete(templateId: string, templateName: string, e: React.MouseEvent) {
+    e.stopPropagation(); // Prevent template click handler
+
+    const confirmed = confirm(`Are you sure you want to delete "${templateName}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteDayTemplate(templateId);
+      if (result.success) {
+        // Reload templates
+        await loadTemplates();
+      } else {
+        alert('Failed to delete template: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      alert('Failed to delete template');
     }
   }
 
@@ -184,8 +204,19 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
                   </div>
                 </div>
 
-                <div className="text-2xl text-text-tertiary">
-                  →
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => handleDelete(template.id!, template.name, e)}
+                    className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Delete template"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                  <div className="text-2xl text-text-tertiary self-center">
+                    →
+                  </div>
                 </div>
               </div>
             </div>

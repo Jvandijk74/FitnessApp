@@ -529,3 +529,27 @@ export async function scheduleFromTemplate(
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
+
+// Delete a day template
+export async function deleteDayTemplate(templateId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('[Day Templates] Deleting template:', templateId);
+    const supabase = await getServerSupabase();
+
+    const { error } = await supabase
+      .from('day_templates')
+      .delete()
+      .eq('id', templateId);
+
+    if (error) {
+      console.error('[Day Templates] Error deleting template:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('[Day Templates] Template deleted successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('[Day Templates] Exception deleting template:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
