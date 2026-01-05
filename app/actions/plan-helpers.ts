@@ -49,18 +49,29 @@ export async function getWeekWorkouts(
   year: number
 ): Promise<CombinedDayWorkout[]> {
   try {
+    console.log('[Plan Helpers] ===== getWeekWorkouts called =====');
+    console.log('[Plan Helpers] Params:', { userId, week, year });
+
     const { startDate, endDate, dates } = getWeekDateRange(week, year);
+    console.log('[Plan Helpers] Date range:', { startDate, endDate });
+    console.log('[Plan Helpers] Week dates:', dates);
 
     // Fetch scheduled workouts for the week
+    console.log('[Plan Helpers] Fetching scheduled workouts...');
     const scheduledWorkouts = await getScheduledWorkouts(userId, startDate, endDate);
+    console.log('[Plan Helpers] Found', scheduledWorkouts.length, 'scheduled workouts');
+    scheduledWorkouts.forEach(w => console.log('  -', w.name, 'on', w.workout_date));
 
     // Fetch active template for the week
+    console.log('[Plan Helpers] Fetching active template...');
     const activeTemplate = await getActiveTemplate(userId, startDate);
+    console.log('[Plan Helpers] Active template:', activeTemplate ? activeTemplate.name : 'None');
 
     // Create a map of scheduled workouts by day
     const scheduledByDay = new Map<string, ScheduledWorkout>();
     scheduledWorkouts.forEach(workout => {
       const dayOfWeek = getDayOfWeek(workout.workout_date);
+      console.log('[Plan Helpers] Mapping', workout.name, 'to', dayOfWeek);
       scheduledByDay.set(dayOfWeek, workout);
     });
 
@@ -99,9 +110,14 @@ export async function getWeekWorkouts(
       // If neither, skip (don't show rest days in carousel)
     });
 
+    console.log('[Plan Helpers] Combined workouts to return:', combined.length);
+    combined.forEach((w, i) => console.log(`  ${i+1}.`, w.day_of_week, '-', w.source, '-', (w.workout as any).name || 'Rest'));
+    console.log('[Plan Helpers] ===== getWeekWorkouts end =====');
+
     return combined;
   } catch (error) {
     console.error('[Plan Helpers] Error fetching week workouts:', error);
+    console.error('[Plan Helpers] Error details:', error);
     return [];
   }
 }

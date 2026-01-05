@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DayTemplate, getDayTemplates, scheduleFromTemplate, deleteDayTemplate } from '@/app/actions/scheduled-workouts';
+import { DayTemplate, getDayTemplates, scheduleFromTemplate, deleteDayTemplate, updateDayTemplate } from '@/app/actions/scheduled-workouts';
 
 interface TemplateLibraryProps {
   userId: string;
@@ -14,8 +14,12 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<DayTemplate | null>(null);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduling, setScheduling] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<DayTemplate | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   useEffect(() => {
     loadTemplates();
@@ -73,6 +77,39 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
     } catch (error) {
       console.error('Error deleting template:', error);
       alert('Failed to delete template');
+    }
+  }
+
+  function handleEdit(template: DayTemplate, e: React.MouseEvent) {
+    e.stopPropagation(); // Prevent template click handler
+    setEditingTemplate(template);
+    setEditName(template.name);
+    setEditDescription(template.description || '');
+    setShowEditDialog(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!editingTemplate || !editName.trim()) {
+      alert('Template name is required');
+      return;
+    }
+
+    try {
+      const result = await updateDayTemplate(editingTemplate.id!, {
+        name: editName,
+        description: editDescription
+      });
+
+      if (result.success) {
+        setShowEditDialog(false);
+        setEditingTemplate(null);
+        await loadTemplates();
+      } else {
+        alert('Failed to update template: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error updating template:', error);
+      alert('Failed to update template');
     }
   }
 
@@ -206,6 +243,15 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
 
                 <div className="flex gap-2">
                   <button
+                    onClick={(e) => handleEdit(template, e)}
+                    className="p-2 rounded-lg text-primary-400 hover:bg-primary-500/10 transition-colors"
+                    title="Edit template"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
                     onClick={(e) => handleDelete(template.id!, template.name, e)}
                     className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
                     title="Delete template"
@@ -269,6 +315,64 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
                 disabled={scheduling || !scheduleDate}
               >
                 {scheduling ? 'Scheduling...' : 'Schedule Workout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      {showEditDialog && editingTemplate && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-surface rounded-xl max-w-md w-full p-6">
+            <h3 className="text-2xl font-bold text-text-primary mb-4">Edit Template</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Template Name *
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="form-input w-full"
+                placeholder="e.g., Upper Body Push Day"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Description (optional)
+              </label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="form-input w-full h-24 resize-none"
+                placeholder="Describe this workout template..."
+              />
+            </div>
+
+            <div className="text-sm text-text-tertiary mb-6 p-3 bg-surface-elevated rounded-lg">
+              <p className="font-medium text-text-secondary mb-1">Note:</p>
+              <p>To edit exercises, delete this template and create a new one with the desired exercises.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEditDialog(false);
+                  setEditingTemplate(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="btn-primary flex-1"
+                disabled={!editName.trim()}
+              >
+                Save Changes
               </button>
             </div>
           </div>

@@ -553,3 +553,75 @@ export async function deleteDayTemplate(templateId: string): Promise<{ success: 
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }
+
+// Update a day template
+export async function updateDayTemplate(templateId: string, template: Partial<DayTemplate>): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('[Day Templates] Updating template:', templateId);
+    const supabase = await getServerSupabase();
+
+    // Update template basic info
+    const updateData: any = {};
+    if (template.name !== undefined) updateData.name = template.name;
+    if (template.description !== undefined) updateData.description = template.description;
+    if (template.workout_type !== undefined) updateData.workout_type = template.workout_type;
+    if (template.run_duration_minutes !== undefined) updateData.run_duration_minutes = template.run_duration_minutes;
+    if (template.run_distance_km !== undefined) updateData.run_distance_km = template.run_distance_km;
+    if (template.run_intensity !== undefined) updateData.run_intensity = template.run_intensity;
+    if (template.run_target_pace !== undefined) updateData.run_target_pace = template.run_target_pace;
+    if (template.run_target_rpe !== undefined) updateData.run_target_rpe = template.run_target_rpe;
+    if (template.is_favorite !== undefined) updateData.is_favorite = template.is_favorite;
+
+    const { error: updateError } = await supabase
+      .from('day_templates')
+      .update(updateData)
+      .eq('id', templateId);
+
+    if (updateError) {
+      console.error('[Day Templates] Error updating template:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    // Update exercises if provided
+    if (template.exercises !== undefined) {
+      // Delete existing exercises
+      await supabase
+        .from('day_template_exercises')
+        .delete()
+        .eq('day_template_id', templateId);
+
+      // Insert new exercises
+      if (template.exercises.length > 0) {
+        const exercisesData = template.exercises.map(ex => ({
+          day_template_id: templateId,
+          exercise_id: ex.exercise_id,
+          exercise_name: ex.exercise_name,
+          muscle_group: ex.muscle_group,
+          sets: ex.sets,
+          reps: ex.reps,
+          tempo: ex.tempo,
+          rest: ex.rest,
+          target_rpe: ex.target_rpe,
+          target_rir: ex.target_rir,
+          notes: ex.notes,
+          order_index: ex.order_index
+        }));
+
+        const { error: exercisesError } = await supabase
+          .from('day_template_exercises')
+          .insert(exercisesData);
+
+        if (exercisesError) {
+          console.error('[Day Templates] Error updating exercises:', exercisesError);
+          return { success: false, error: exercisesError.message };
+        }
+      }
+    }
+
+    console.log('[Day Templates] Template updated successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('[Day Templates] Exception updating template:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
