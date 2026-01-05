@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { DayTemplate, getDayTemplates, scheduleFromTemplate, deleteDayTemplate, updateDayTemplate } from '@/app/actions/scheduled-workouts';
 
 interface TemplateLibraryProps {
@@ -10,6 +11,7 @@ interface TemplateLibraryProps {
 }
 
 export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: TemplateLibraryProps) {
+  const router = useRouter();
   const [templates, setTemplates] = useState<DayTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<DayTemplate | null>(null);
@@ -47,8 +49,14 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
         setShowScheduleDialog(false);
         setSelectedTemplate(null);
         setScheduleDate('');
+
+        // Refresh the page to show updated workouts
+        router.refresh();
+
         // Show success message
-        alert('Workout scheduled successfully!');
+        const dateObj = new Date(scheduleDate);
+        const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        alert(`✅ Workout scheduled for ${formattedDate}!\n\nGo to Dashboard to see it in your Weekly Training Plan.`);
       } else {
         alert('Failed to schedule workout: ' + result.error);
       }

@@ -483,6 +483,23 @@ export async function scheduleFromTemplate(
   try {
     const supabase = await getServerSupabase();
 
+    // Check if a workout already exists for this date
+    const { data: existingWorkout } = await supabase
+      .from('scheduled_workouts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('workout_date', workoutDate)
+      .single();
+
+    // If a workout exists, delete it first
+    if (existingWorkout) {
+      console.log('[Scheduled Workouts] Deleting existing workout for', workoutDate);
+      await supabase
+        .from('scheduled_workouts')
+        .delete()
+        .eq('id', existingWorkout.id);
+    }
+
     // Get the template
     const { data: template, error: templateError } = await supabase
       .from('day_templates')
