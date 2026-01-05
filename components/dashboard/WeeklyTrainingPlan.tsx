@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { getWeekWorkouts, CombinedDayWorkout } from '@/app/actions/plan-helpers';
 import { ScheduledWorkout } from '@/app/actions/scheduled-workouts';
@@ -13,38 +13,37 @@ interface WeeklyTrainingPlanProps {
 export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
   const [workouts, setWorkouts] = useState<CombinedDayWorkout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentWeek, setCurrentWeek] = useState(1);
-  const [currentYear, setCurrentYear] = useState(2026);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    // Calculate current week
-    const now = new Date();
-    const onejan = new Date(now.getFullYear(), 0, 1);
-    const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-    const year = now.getFullYear();
+    // Prevent double-fetching in development strict mode
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
 
-    setCurrentWeek(week);
-    setCurrentYear(year);
-  }, []);
+    async function fetchWorkouts() {
+      setLoading(true);
+      try {
+        // Calculate current week
+        const now = new Date();
+        const onejan = new Date(now.getFullYear(), 0, 1);
+        const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
+        const year = now.getFullYear();
 
-  useEffect(() => {
-    if (currentWeek > 0) {
-      loadWorkouts();
+        console.log('[WeeklyTrainingPlan] Fetching workouts for week:', week, 'year:', year);
+        const data = await getWeekWorkouts(userId, week, year);
+        console.log('[WeeklyTrainingPlan] Received workouts:', data.length);
+
+        setWorkouts(data);
+      } catch (error) {
+        console.error('[WeeklyTrainingPlan] Error loading workouts:', error);
+      } finally {
+        setLoading(false);
+      }
     }
-  }, [userId, currentWeek, currentYear]);
 
-  async function loadWorkouts() {
-    setLoading(true);
-    try {
-      const data = await getWeekWorkouts(userId, currentWeek, currentYear);
-      setWorkouts(data);
-    } catch (error) {
-      console.error('Error loading workouts:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+    fetchWorkouts();
+  }, [userId]);
 
   const dayLabels: Record<string, string> = {
     monday: 'Monday',
@@ -79,7 +78,10 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
   };
 
   const getWeekDateString = () => {
-    const startDate = new Date(currentYear, 0, 1 + (currentWeek - 1) * 7);
+    const now = new Date();
+    const onejan = new Date(now.getFullYear(), 0, 1);
+    const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
+    const startDate = new Date(now.getFullYear(), 0, 1 + (week - 1) * 7);
     return `Week starting ${startDate.toISOString().split('T')[0]}`;
   };
 
