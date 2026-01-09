@@ -21,15 +21,15 @@ export async function getStravaConnection(userId: string) {
       .from('strava_connections')
       .select('access_token, refresh_token, athlete_id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     if (error) {
-      console.log('[Strava Actions] No connection found or error:', error.message);
+      console.log('[Strava Actions] Query error:', error.message);
       return null;
     }
 
     if (!data) {
-      console.log('[Strava Actions] No connection data found');
+      console.log('[Strava Actions] No Strava connection found for user');
       return null;
     }
 
