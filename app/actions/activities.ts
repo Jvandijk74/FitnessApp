@@ -67,6 +67,7 @@ export async function getActivities(userId: string) {
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined
     });
-    throw error;
+    // Return empty array instead of throwing to prevent page crashes
+    return [];
   }
 }

@@ -21,6 +21,11 @@ export function ActivityDetailModal({ isOpen, onClose, activityId, userId }: Act
   useEffect(() => {
     if (isOpen && activityId) {
       fetchActivityData();
+    } else if (!isOpen) {
+      // Reset state when modal closes
+      setData(null);
+      setError(null);
+      setActiveTab('overview');
     }
   }, [isOpen, activityId]);
 
@@ -29,15 +34,23 @@ export function ActivityDetailModal({ isOpen, onClose, activityId, userId }: Act
 
     setLoading(true);
     setError(null);
+    setData(null);
 
     try {
       console.log('[ActivityDetailModal] Fetching activity details for:', activityId);
       const result = await getActivityDetails(userId, activityId);
+
+      if (!result || !result.detail) {
+        throw new Error('No activity data returned from Strava');
+      }
+
       setData(result);
-      console.log('[ActivityDetailModal] Activity data loaded:', result);
+      console.log('[ActivityDetailModal] Activity data loaded successfully');
     } catch (err) {
       console.error('[ActivityDetailModal] Error fetching activity:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load activity details');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load activity details. Please try again.';
+      setError(errorMessage);
+      setData(null);
     } finally {
       setLoading(false);
     }
