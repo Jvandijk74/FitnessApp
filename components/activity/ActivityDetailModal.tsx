@@ -205,8 +205,8 @@ export function ActivityDetailModal({ isOpen, onClose, activityId, userId }: Act
 
               {activeTab === 'map' && (
                 <div className="h-[500px]">
-                  {data.detail.map ? (
-                    <ActivityMap polyline={data.detail.map} />
+                  {data.detail.map?.summary_polyline ? (
+                    <ActivityMap polyline={data.detail.map.summary_polyline} />
                   ) : (
                     <div className="flex items-center justify-center h-full bg-surface-elevated rounded-lg">
                       <p className="text-text-secondary">No map data available for this activity</p>
