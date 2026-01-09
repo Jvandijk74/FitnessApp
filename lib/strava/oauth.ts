@@ -118,21 +118,40 @@ export async function saveConnection(
   console.log('[Strava OAuth] Saving connection for user:', userId);
   console.log('[Strava OAuth] Athlete ID:', tokens.athlete?.id);
 
-  const { error } = await supabase
+  const connectionData = {
+    user_id: userId,
+    access_token: tokens.access_token,
+    refresh_token: tokens.refresh_token,
+    athlete_id: tokens.athlete?.id || null
+  };
+
+  console.log('[Strava OAuth] Connection data to save:', {
+    user_id: userId,
+    athlete_id: tokens.athlete?.id,
+    has_access_token: !!tokens.access_token,
+    has_refresh_token: !!tokens.refresh_token
+  });
+
+  const { data, error } = await supabase
     .from('strava_connections')
-    .upsert({
-      user_id: userId,
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
-      athlete_id: tokens.athlete?.id || null
-    });
+    .upsert(connectionData, {
+      onConflict: 'user_id'
+    })
+    .select();
 
   if (error) {
     console.error('[Strava OAuth] Error saving connection:', error);
-    throw error;
+    console.error('[Strava OAuth] Error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    throw new Error(`Failed to save Strava connection: ${error.message}`);
   }
 
   console.log('[Strava OAuth] Connection saved successfully!');
+  console.log('[Strava OAuth] Saved data:', data);
 }
 
 export async function refreshAccessToken(refreshToken: string) {
