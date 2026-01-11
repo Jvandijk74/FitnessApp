@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { getActivityDetails } from '@/app/actions/strava';
 import { ActivityMap } from './ActivityMap';
 import { ActivityCharts } from './ActivityCharts';
+import { RunAnalysis } from './RunAnalysis';
+import { RunMetrics } from './RunMetrics';
 
 interface ActivityDetailModalProps {
   isOpen: boolean;
@@ -188,6 +190,12 @@ export function ActivityDetailModal({ isOpen, onClose, activityId, userId }: Act
                       )}
                     </div>
                   )}
+
+                  {/* AI Coach Analysis */}
+                  <RunAnalysis detail={data.detail} />
+
+                  {/* Advanced Running Metrics */}
+                  <RunMetrics detail={data.detail} streams={data.streams} />
 
                   {/* Splits */}
                   {data.detail.splits_metric && data.detail.splits_metric.length > 0 && (
