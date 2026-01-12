@@ -42,26 +42,37 @@ export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: T
   async function handleSchedule() {
     if (!selectedTemplate || !scheduleDate) return;
 
+    console.log('[TemplateLibrary] 📅 Scheduling workout...');
+    console.log('[TemplateLibrary] Template:', selectedTemplate.name);
+    console.log('[TemplateLibrary] Date selected:', scheduleDate);
+    console.log('[TemplateLibrary] Date type:', typeof scheduleDate);
+
     setScheduling(true);
     try {
       const result = await scheduleFromTemplate(userId, selectedTemplate.id!, scheduleDate);
+
+      console.log('[TemplateLibrary] ✅ Schedule result:', result);
+
       if (result.success) {
         setShowScheduleDialog(false);
         setSelectedTemplate(null);
         setScheduleDate('');
 
         // Refresh the page to show updated workouts
+        console.log('[TemplateLibrary] 🔄 Refreshing router...');
         router.refresh();
 
         // Show success message
         const dateObj = new Date(scheduleDate);
         const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        console.log('[TemplateLibrary] 📅 Formatted date for message:', formattedDate);
         alert(`✅ Workout scheduled for ${formattedDate}!\n\nGo to Dashboard to see it in your Weekly Training Plan.`);
       } else {
+        console.error('[TemplateLibrary] ❌ Schedule failed:', result.error);
         alert('Failed to schedule workout: ' + result.error);
       }
     } catch (error) {
-      console.error('Error scheduling workout:', error);
+      console.error('[TemplateLibrary] ❌ Exception scheduling workout:', error);
       alert('Failed to schedule workout');
     } finally {
       setScheduling(false);

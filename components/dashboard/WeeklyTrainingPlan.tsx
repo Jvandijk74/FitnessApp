@@ -26,17 +26,32 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
       try {
         // Calculate current week
         const now = new Date();
+        console.log('[WeeklyTrainingPlan] 📅 Current date:', now.toISOString());
+        console.log('[WeeklyTrainingPlan] 📅 Current date (local):', now.toString());
+
         const onejan = new Date(now.getFullYear(), 0, 1);
         const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
         const year = now.getFullYear();
 
-        console.log('[WeeklyTrainingPlan] Fetching workouts for week:', week, 'year:', year);
+        console.log('[WeeklyTrainingPlan] 🔢 Calculated week number:', week);
+        console.log('[WeeklyTrainingPlan] 🔢 Year:', year);
+        console.log('[WeeklyTrainingPlan] ⚙️  Calling getWeekWorkouts...');
+
         const data = await getWeekWorkouts(userId, week, year);
-        console.log('[WeeklyTrainingPlan] Received workouts:', data.length);
+
+        console.log('[WeeklyTrainingPlan] ✅ Received', data.length, 'workouts');
+        if (data.length > 0) {
+          console.log('[WeeklyTrainingPlan] 📋 Workouts received:');
+          data.forEach((w, i) => {
+            console.log(`  ${i + 1}. ${w.day_of_week} (${w.day}) - ${(w.workout as any).name || 'Rest'} [source: ${w.source}]`);
+          });
+        } else {
+          console.log('[WeeklyTrainingPlan] ⚠️  No workouts returned from server');
+        }
 
         setWorkouts(data);
       } catch (error) {
-        console.error('[WeeklyTrainingPlan] Error loading workouts:', error);
+        console.error('[WeeklyTrainingPlan] ❌ Error loading workouts:', error);
       } finally {
         setLoading(false);
       }
