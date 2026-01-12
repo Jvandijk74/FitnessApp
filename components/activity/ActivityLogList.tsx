@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ActivityDetailModal } from './ActivityDetailModal';
+import { updateWorkoutResults } from '@/app/actions/scheduled-workouts';
 
 interface Activity {
   id: string;
@@ -41,6 +42,9 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
   const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editingLoggedSets, setEditingLoggedSets] = useState<{ [exerciseName: string]: Array<{ weight: number; reps: number; rpe?: number; rir?: number }> }>({});
+  const [saving, setSaving] = useState(false);
 
   const handleActivityClick = (activity: Activity) => {
     // Strava activities: show detail modal
@@ -48,10 +52,22 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
       setSelectedActivityId(activity.stravaActivityId);
       setIsModalOpen(true);
     }
-    // Scheduled workouts with AI feedback: show feedback modal
-    else if (activity.source === 'scheduled' && activity.aiFeedback) {
+    // Scheduled workouts: show feedback/details modal
+    else if (activity.source === 'scheduled' && (activity.aiFeedback || (activity.type === 'strength' && activity.exercises))) {
       setSelectedActivity(activity);
       setShowFeedbackModal(true);
+      setEditMode(false);
+
+      // Initialize editing state from existing logged sets
+      const initialSets: { [exerciseName: string]: Array<{ weight: number; reps: number; rpe?: number; rir?: number }> } = {};
+      if (activity.exercises) {
+        activity.exercises.forEach((ex: any) => {
+          if (ex.logged_sets && ex.logged_sets.length > 0) {
+            initialSets[ex.exercise_name] = ex.logged_sets;
+          }
+        });
+      }
+      setEditingLoggedSets(initialSets);
     }
   };
 
@@ -63,6 +79,92 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
   const handleCloseFeedbackModal = () => {
     setShowFeedbackModal(false);
     setSelectedActivity(null);
+    setEditMode(false);
+    setEditingLoggedSets({});
+  };
+
+  const handleStartEdit = () => {
+    setEditMode(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditMode(false);
+    // Reset to original values
+    if (selectedActivity && selectedActivity.exercises) {
+      const initialSets: { [exerciseName: string]: Array<{ weight: number; reps: number; rpe?: number; rir?: number }> } = {};
+      selectedActivity.exercises.forEach((ex: any) => {
+        if (ex.logged_sets && ex.logged_sets.length > 0) {
+          initialSets[ex.exercise_name] = ex.logged_sets;
+        }
+      });
+      setEditingLoggedSets(initialSets);
+    }
+  };
+
+  const handleAddSet = (exerciseName: string) => {
+    setEditingLoggedSets(prev => ({
+      ...prev,
+      [exerciseName]: [...(prev[exerciseName] || []), { weight: 0, reps: 0, rpe: 7 }]
+    }));
+  };
+
+  const handleUpdateSet = (exerciseName: string, setIndex: number, field: 'weight' | 'reps' | 'rpe', value: number) => {
+    setEditingLoggedSets(prev => ({
+      ...prev,
+      [exerciseName]: prev[exerciseName]?.map((set, i) =>
+        i === setIndex ? { ...set, [field]: value } : set
+      ) || []
+    }));
+  };
+
+  const handleRemoveSet = (exerciseName: string, setIndex: number) => {
+    setEditingLoggedSets(prev => ({
+      ...prev,
+      [exerciseName]: prev[exerciseName]?.filter((_, i) => i !== setIndex) || []
+    }));
+  };
+
+  const handleSaveResults = async () => {
+    if (!selectedActivity?.scheduledWorkoutId) return;
+
+    setSaving(true);
+    try {
+      const result = await updateWorkoutResults(selectedActivity.scheduledWorkoutId, editingLoggedSets);
+      if (result.success) {
+        // Update the selected activity with new data
+        if (selectedActivity.exercises) {
+          selectedActivity.exercises.forEach((ex: any) => {
+            ex.logged_sets = editingLoggedSets[ex.exercise_name] || [];
+          });
+
+          // Recalculate totals
+          let totalVolume = 0;
+          let totalSets = 0;
+          selectedActivity.exercises.forEach((ex: any) => {
+            if (ex.logged_sets) {
+              ex.logged_sets.forEach((set: any) => {
+                totalVolume += (set.weight || 0) * (set.reps || 0);
+                totalSets++;
+              });
+            }
+          });
+          selectedActivity.totalVolume = totalVolume;
+          selectedActivity.totalSets = totalSets;
+          selectedActivity.aiFeedback = result.feedback;
+        }
+
+        setEditMode(false);
+        // Force a page refresh to show updated data
+        window.location.reload();
+      } else {
+        alert('Failed to save results: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error saving results:', error);
+      alert('Failed to save results');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -262,42 +364,129 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
             {/* Exercise Details for Strength Workouts */}
             {selectedActivity.type === 'strength' && selectedActivity.exercises && selectedActivity.exercises.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-bold text-text-primary mb-4">Exercise Details</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-text-primary">Exercise Details</h3>
+                  {!editMode && (
+                    <button
+                      onClick={handleStartEdit}
+                      className="btn-secondary text-sm"
+                    >
+                      ✏️ Edit Results
+                    </button>
+                  )}
+                </div>
                 <div className="space-y-4">
-                  {selectedActivity.exercises.map((exercise: any, index: number) => (
-                    <div key={index} className="bg-surface-elevated rounded-lg p-4 border border-white/10">
-                      <h4 className="font-semibold text-text-primary mb-3">{exercise.exercise_name}</h4>
+                  {selectedActivity.exercises.map((exercise: any, index: number) => {
+                    const exerciseSets = editMode
+                      ? (editingLoggedSets[exercise.exercise_name] || [])
+                      : (exercise.logged_sets || []);
 
-                      {exercise.logged_sets && exercise.logged_sets.length > 0 ? (
-                        <div className="space-y-2">
-                          <div className="grid grid-cols-12 gap-2 text-xs text-text-tertiary font-medium mb-2">
-                            <div className="col-span-2">Set</div>
-                            <div className="col-span-3">Weight (kg)</div>
-                            <div className="col-span-3">Reps</div>
-                            <div className="col-span-2">RPE</div>
-                            <div className="col-span-2">Volume</div>
-                          </div>
-                          {exercise.logged_sets.map((set: any, setIndex: number) => (
-                            <div key={setIndex} className="grid grid-cols-12 gap-2 text-sm">
-                              <div className="col-span-2 text-text-tertiary">{setIndex + 1}</div>
-                              <div className="col-span-3 text-text-primary font-semibold">{set.weight || 0} kg</div>
-                              <div className="col-span-3 text-text-primary font-semibold">{set.reps || 0}</div>
-                              <div className="col-span-2 text-text-secondary">{set.rpe || '-'}</div>
-                              <div className="col-span-2 text-accent-400 font-medium">{((set.weight || 0) * (set.reps || 0)).toFixed(0)} kg</div>
+                    return (
+                      <div key={index} className="bg-surface-elevated rounded-lg p-4 border border-white/10">
+                        <h4 className="font-semibold text-text-primary mb-3">{exercise.exercise_name}</h4>
+
+                        {!editMode && exerciseSets.length > 0 ? (
+                          // View Mode
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-12 gap-2 text-xs text-text-tertiary font-medium mb-2">
+                              <div className="col-span-2">Set</div>
+                              <div className="col-span-3">Weight (kg)</div>
+                              <div className="col-span-3">Reps</div>
+                              <div className="col-span-2">RPE</div>
+                              <div className="col-span-2">Volume</div>
                             </div>
+                            {exerciseSets.map((set: any, setIndex: number) => (
+                              <div key={setIndex} className="grid grid-cols-12 gap-2 text-sm">
+                                <div className="col-span-2 text-text-tertiary">{setIndex + 1}</div>
+                                <div className="col-span-3 text-text-primary font-semibold">{set.weight || 0} kg</div>
+                                <div className="col-span-3 text-text-primary font-semibold">{set.reps || 0}</div>
+                                <div className="col-span-2 text-text-secondary">{set.rpe || '-'}</div>
+                                <div className="col-span-2 text-accent-400 font-medium">{((set.weight || 0) * (set.reps || 0)).toFixed(0)} kg</div>
+                              </div>
                           ))}
                           <div className="mt-2 pt-2 border-t border-white/10 text-sm">
                             <span className="text-text-tertiary">Exercise Total: </span>
                             <span className="text-accent-400 font-bold">
-                              {exercise.logged_sets.reduce((sum: number, set: any) => sum + (set.weight || 0) * (set.reps || 0), 0).toFixed(0)} kg
+                              {exerciseSets.reduce((sum: number, set: any) => sum + (set.weight || 0) * (set.reps || 0), 0).toFixed(0)} kg
                             </span>
                           </div>
                         </div>
-                      ) : (
+                      ) : !editMode ? (
                         <p className="text-text-tertiary text-sm">No sets logged</p>
+                      ) : null}
+
+                      {editMode && (
+                        // Edit Mode
+                        <div className="space-y-3">
+                          {exerciseSets.length > 0 && (
+                            <>
+                              <div className="grid grid-cols-12 gap-2 text-xs text-text-tertiary font-medium mb-2">
+                                <div className="col-span-1">Set</div>
+                                <div className="col-span-3">Weight (kg)</div>
+                                <div className="col-span-3">Reps</div>
+                                <div className="col-span-3">RPE</div>
+                                <div className="col-span-2"></div>
+                              </div>
+                              {exerciseSets.map((set: any, setIndex: number) => (
+                                <div key={setIndex} className="grid grid-cols-12 gap-2">
+                                  <div className="col-span-1 flex items-center text-text-tertiary text-sm">
+                                    {setIndex + 1}
+                                  </div>
+                                  <div className="col-span-3">
+                                    <input
+                                      type="number"
+                                      value={set.weight || ''}
+                                      onChange={(e) => handleUpdateSet(exercise.exercise_name, setIndex, 'weight', Number(e.target.value))}
+                                      className="form-input w-full text-sm"
+                                      placeholder="Weight"
+                                    />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <input
+                                      type="number"
+                                      value={set.reps || ''}
+                                      onChange={(e) => handleUpdateSet(exercise.exercise_name, setIndex, 'reps', Number(e.target.value))}
+                                      className="form-input w-full text-sm"
+                                      placeholder="Reps"
+                                    />
+                                  </div>
+                                  <div className="col-span-3">
+                                    <input
+                                      type="number"
+                                      value={set.rpe || ''}
+                                      onChange={(e) => handleUpdateSet(exercise.exercise_name, setIndex, 'rpe', Number(e.target.value))}
+                                      className="form-input w-full text-sm"
+                                      placeholder="RPE"
+                                      min="1"
+                                      max="10"
+                                    />
+                                  </div>
+                                  <div className="col-span-2 flex items-center">
+                                    <button
+                                      onClick={() => handleRemoveSet(exercise.exercise_name, setIndex)}
+                                      className="p-2 text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                                      title="Remove set"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </>
+                          )}
+                          <button
+                            onClick={() => handleAddSet(exercise.exercise_name)}
+                            className="btn-secondary text-sm w-full"
+                          >
+                            + Add Set
+                          </button>
+                        </div>
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
             )}
@@ -315,14 +504,33 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
               </div>
             )}
 
-            {/* Close Button */}
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleCloseFeedbackModal}
-                className="btn-secondary"
-              >
-                Close
-              </button>
+            {/* Action Buttons */}
+            <div className="mt-6 flex justify-end gap-3">
+              {editMode ? (
+                <>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="btn-secondary"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveResults}
+                    disabled={saving}
+                    className="btn-primary"
+                  >
+                    {saving ? 'Saving...' : '💾 Save Results'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleCloseFeedbackModal}
+                  className="btn-secondary"
+                >
+                  Close
+                </button>
+              )}
             </div>
           </div>
         </div>

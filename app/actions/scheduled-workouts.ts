@@ -713,6 +713,89 @@ export async function scheduleFromTemplate(
   }
 }
 
+// Update logged results for a completed workout
+export async function updateWorkoutResults(
+  workoutId: string,
+  loggedSets: { [exerciseName: string]: Array<{ weight: number; reps: number; rpe?: number; rir?: number }> }
+) {
+  try {
+    console.log('[Update Workout Results] Updating workout:', workoutId);
+    const supabase = await getServerSupabase();
+
+    // Get the workout details
+    const workout = await getScheduledWorkout(workoutId);
+    if (!workout) {
+      throw new Error('Workout not found');
+    }
+
+    // Save logged sets to exercises
+    if (workout.workout_type === 'strength' && workout.exercises) {
+      console.log('[Update Workout Results] Saving logged sets:', loggedSets);
+
+      for (const exercise of workout.exercises) {
+        const exerciseName = exercise.exercise_name;
+        const sets = loggedSets[exerciseName];
+
+        if (sets && sets.length > 0) {
+          console.log(`[Update Workout Results] Updating exercise "${exerciseName}" with ${sets.length} sets`);
+
+          const { error: exerciseUpdateError } = await supabase
+            .from('scheduled_workout_exercises')
+            .update({
+              logged_sets: sets,
+              completed: true
+            })
+            .eq('id', exercise.id);
+
+          if (exerciseUpdateError) {
+            console.error('[Update Workout Results] Error updating exercise:', exerciseUpdateError);
+            throw exerciseUpdateError;
+          }
+
+          // Update the workout object with logged sets for AI feedback generation
+          exercise.logged_sets = sets;
+          exercise.completed = true;
+        } else {
+          // Clear logged sets if empty
+          await supabase
+            .from('scheduled_workout_exercises')
+            .update({
+              logged_sets: null,
+              completed: false
+            })
+            .eq('id', exercise.id);
+        }
+      }
+
+      // Regenerate AI feedback with updated data
+      const feedback = await generateAIFeedback(workout);
+
+      // Save updated AI feedback
+      const { error: feedbackError } = await supabase
+        .from('scheduled_workouts')
+        .update({
+          ai_feedback: feedback,
+          ai_feedback_generated_at: new Date().toISOString()
+        })
+        .eq('id', workoutId);
+
+      if (feedbackError) throw feedbackError;
+
+      console.log('[Update Workout Results] Results updated successfully');
+      revalidatePath('/log');
+      revalidatePath('/plan');
+      revalidatePath('/dashboard');
+
+      return { success: true, feedback };
+    }
+
+    return { success: false, error: 'Not a strength workout' };
+  } catch (error) {
+    console.error('[Update Workout Results] Error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 // Delete a scheduled workout
 export async function deleteScheduledWorkout(workoutId: string): Promise<{ success: boolean; error?: string }> {
   try {
