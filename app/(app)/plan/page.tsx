@@ -377,6 +377,7 @@ function CombinedDayCard({
   const [showFeedback, setShowFeedback] = useState(false);
   const [aiFeedback, setAiFeedback] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
 
   const dayLabels: Record<TrainingDay, string> = {
     monday: 'Monday',
@@ -397,6 +398,49 @@ function CombinedDayCard({
   const exercises = isScheduled ? scheduledWorkout!.exercises : templateDay!.exercises;
   const isCompleted = isScheduled ? scheduledWorkout!.completed : false;
   const hasFeedback = isScheduled && scheduledWorkout!.ai_feedback;
+
+  // Create unique storage key for this workout
+  const storageKey = isScheduled && scheduledWorkout?.id
+    ? `workout-log-${scheduledWorkout.id}`
+    : `workout-log-${combinedWorkout.day_of_week}`;
+
+  // Load saved data from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setLoggedSets(parsed.sets || {});
+          console.log('[Workout Log] ✅ Restored saved data from localStorage');
+        } catch (error) {
+          console.error('[Workout Log] Error parsing saved data:', error);
+        }
+      }
+    }
+  }, [storageKey]);
+
+  // Auto-save to localStorage whenever loggedSets changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && Object.keys(loggedSets).length > 0) {
+      const dataToSave = {
+        sets: loggedSets,
+        timestamp: new Date().toISOString(),
+        workoutName: workoutName || 'Workout'
+      };
+      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+      setLastAutoSave(new Date());
+      console.log('[Workout Log] 💾 Auto-saved to localStorage');
+    }
+  }, [loggedSets, storageKey, workoutName]);
+
+  // Clear localStorage when workout is completed
+  const clearSavedData = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(storageKey);
+      console.log('[Workout Log] 🗑️  Cleared saved data from localStorage');
+    }
+  };
 
   const addSet = (exerciseName: string) => {
     setLoggedSets(prev => ({
@@ -438,6 +482,7 @@ function CombinedDayCard({
     try {
       const result = await completeWorkout(scheduledWorkout.id, 'demo-user');
       if (result.success) {
+        clearSavedData(); // Clear localStorage after successful completion
         setShowFeedback(true);
         setAiFeedback(result.feedback || '');
         onWorkoutCompleted();
