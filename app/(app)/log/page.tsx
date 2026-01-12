@@ -11,16 +11,28 @@ interface Activity {
   id: string;
   type: 'run' | 'strength';
   date: string;
+  // Run fields
   distance?: number;
   duration?: number;
   avgHR?: number;
   maxHR?: number;
   rpe?: number;
-  source?: string;
-  stravaActivityId?: string;
-  day?: string;
+  intensity?: string;
+  targetRpe?: number;
+  // Strength fields
   exercise?: string;
   sets?: string;
+  exercises?: any[];
+  totalVolume?: number;
+  totalSets?: number;
+  exerciseCount?: number;
+  // Common fields
+  name?: string;
+  source?: string;
+  stravaActivityId?: string;
+  scheduledWorkoutId?: string;
+  day?: string;
+  aiFeedback?: string;
 }
 
 export default function ActivityLogPage() {
