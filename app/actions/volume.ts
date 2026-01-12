@@ -13,7 +13,10 @@ export async function getWeeklyVolume(userId: string, week: number, year: number
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 7);
 
-  // Get strength exercises for the week
+  console.log('[Volume] Fetching volume data for week', week, year);
+  console.log('[Volume] Date range:', weekStart.toISOString(), 'to', weekEnd.toISOString());
+
+  // Get legacy strength exercises for the week
   const { data: exercises, error } = await supabase
     .from('strength_exercises')
     .select(`
@@ -31,13 +34,40 @@ export async function getWeeklyVolume(userId: string, week: number, year: number
     .lt('created_at', weekEnd.toISOString());
 
   if (error) {
-    console.error('[Volume] Error fetching exercises:', error);
-    return [];
+    console.error('[Volume] Error fetching legacy exercises:', error);
   }
 
-  if (!exercises || exercises.length === 0) {
-    return [];
+  // Get completed scheduled workouts for the week
+  const { data: scheduledWorkouts, error: scheduledError } = await supabase
+    .from('scheduled_workouts')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('workout_type', 'strength')
+    .eq('completed', true)
+    .gte('completed_at', weekStart.toISOString())
+    .lt('completed_at', weekEnd.toISOString());
+
+  if (scheduledError) {
+    console.error('[Volume] Error fetching scheduled workouts:', error);
   }
+
+  // Fetch exercises for completed scheduled workouts
+  let scheduledExercises: any[] = [];
+  if (scheduledWorkouts && scheduledWorkouts.length > 0) {
+    console.log('[Volume] Found', scheduledWorkouts.length, 'completed scheduled workouts');
+
+    const { data: workoutExercises, error: exercisesError } = await supabase
+      .from('scheduled_workout_exercises')
+      .select('*')
+      .in('scheduled_workout_id', scheduledWorkouts.map(w => w.id));
+
+    if (!exercisesError && workoutExercises) {
+      scheduledExercises = workoutExercises;
+      console.log('[Volume] Found', scheduledExercises.length, 'exercises from scheduled workouts');
+    }
+  }
+
+  const allExercises = [...(exercises || []), ...scheduledExercises];
 
   // Group by muscle group based on exercise names
   const muscleGroupMap: Record<string, { exercises: string[]; patterns: RegExp[] }> = {
@@ -69,12 +99,15 @@ export async function getWeeklyVolume(userId: string, week: number, year: number
 
   const volumeData: Record<string, { volume: number; sets: number }> = {};
 
-  exercises.forEach((exercise: any) => {
+  allExercises.forEach((exercise: any) => {
     let muscleGroup = 'Other';
+
+    // Get exercise name (different field names for legacy vs scheduled)
+    const exerciseName = exercise.exercise_name || exercise.name;
 
     // Determine muscle group
     for (const [group, config] of Object.entries(muscleGroupMap)) {
-      if (config.patterns.some(pattern => pattern.test(exercise.name))) {
+      if (config.patterns.some(pattern => pattern.test(exerciseName))) {
         muscleGroup = group;
         break;
       }
@@ -85,9 +118,13 @@ export async function getWeeklyVolume(userId: string, week: number, year: number
     }
 
     // Calculate volume for this exercise
-    if (exercise.strength_sets_logged) {
-      exercise.strength_sets_logged.forEach((set: any) => {
-        volumeData[muscleGroup].volume += set.weight * set.reps;
+    // Handle both old format (strength_sets_logged) and new format (logged_sets)
+    const sets = exercise.logged_sets || exercise.strength_sets_logged;
+    if (sets && sets.length > 0) {
+      sets.forEach((set: any) => {
+        const weight = set.weight || 0;
+        const reps = set.reps || 0;
+        volumeData[muscleGroup].volume += weight * reps;
         volumeData[muscleGroup].sets += 1;
       });
     }
@@ -143,6 +180,7 @@ export async function calculateProgressiveOverload(userId: string, currentWeek: 
   weekEnd.setDate(weekStart.getDate() + 7);
 
   // Calculate intensity (average RPE)
+  // Get from legacy strength_sets_logged
   const { data: currentSets } = await supabase
     .from('strength_sets_logged')
     .select('rpe')
@@ -150,8 +188,41 @@ export async function calculateProgressiveOverload(userId: string, currentWeek: 
     .lt('created_at', weekEnd.toISOString())
     .not('rpe', 'is', null);
 
-  const currentAvgRPE = currentSets && currentSets.length > 0
-    ? currentSets.reduce((sum: number, set: any) => sum + (set.rpe || 0), 0) / currentSets.length
+  // Get from scheduled workouts
+  const { data: currentScheduledWorkouts } = await supabase
+    .from('scheduled_workouts')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('workout_type', 'strength')
+    .eq('completed', true)
+    .gte('completed_at', weekStart.toISOString())
+    .lt('completed_at', weekEnd.toISOString());
+
+  let currentScheduledRPEs: number[] = [];
+  if (currentScheduledWorkouts && currentScheduledWorkouts.length > 0) {
+    const { data: currentExercises } = await supabase
+      .from('scheduled_workout_exercises')
+      .select('logged_sets')
+      .in('scheduled_workout_id', currentScheduledWorkouts.map(w => w.id));
+
+    if (currentExercises) {
+      currentExercises.forEach((ex: any) => {
+        if (ex.logged_sets) {
+          ex.logged_sets.forEach((set: any) => {
+            if (set.rpe) currentScheduledRPEs.push(set.rpe);
+          });
+        }
+      });
+    }
+  }
+
+  const allCurrentRPEs = [
+    ...(currentSets || []).map((s: any) => s.rpe),
+    ...currentScheduledRPEs
+  ].filter(rpe => rpe != null);
+
+  const currentAvgRPE = allCurrentRPEs.length > 0
+    ? allCurrentRPEs.reduce((sum: number, rpe: number) => sum + rpe, 0) / allCurrentRPEs.length
     : 7;
 
   // Get previous week dates
@@ -160,6 +231,7 @@ export async function calculateProgressiveOverload(userId: string, currentWeek: 
   const prevWeekEnd = new Date(prevWeekStart);
   prevWeekEnd.setDate(prevWeekStart.getDate() + 7);
 
+  // Get from legacy strength_sets_logged
   const { data: prevSets } = await supabase
     .from('strength_sets_logged')
     .select('rpe')
@@ -167,11 +239,44 @@ export async function calculateProgressiveOverload(userId: string, currentWeek: 
     .lt('created_at', prevWeekEnd.toISOString())
     .not('rpe', 'is', null);
 
-  const prevAvgRPE = prevSets && prevSets.length > 0
-    ? prevSets.reduce((sum: number, set: any) => sum + (set.rpe || 0), 0) / prevSets.length
+  // Get from scheduled workouts
+  const { data: prevScheduledWorkouts } = await supabase
+    .from('scheduled_workouts')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('workout_type', 'strength')
+    .eq('completed', true)
+    .gte('completed_at', prevWeekStart.toISOString())
+    .lt('completed_at', prevWeekEnd.toISOString());
+
+  let prevScheduledRPEs: number[] = [];
+  if (prevScheduledWorkouts && prevScheduledWorkouts.length > 0) {
+    const { data: prevExercises } = await supabase
+      .from('scheduled_workout_exercises')
+      .select('logged_sets')
+      .in('scheduled_workout_id', prevScheduledWorkouts.map(w => w.id));
+
+    if (prevExercises) {
+      prevExercises.forEach((ex: any) => {
+        if (ex.logged_sets) {
+          ex.logged_sets.forEach((set: any) => {
+            if (set.rpe) prevScheduledRPEs.push(set.rpe);
+          });
+        }
+      });
+    }
+  }
+
+  const allPrevRPEs = [
+    ...(prevSets || []).map((s: any) => s.rpe),
+    ...prevScheduledRPEs
+  ].filter(rpe => rpe != null);
+
+  const prevAvgRPE = allPrevRPEs.length > 0
+    ? allPrevRPEs.reduce((sum: number, rpe: number) => sum + rpe, 0) / allPrevRPEs.length
     : 7;
 
-  const intensityIncrease = ((currentAvgRPE - prevAvgRPE) / prevAvgRPE) * 100;
+  const intensityIncrease = prevAvgRPE > 0 ? ((currentAvgRPE - prevAvgRPE) / prevAvgRPE) * 100 : 0;
 
   // Calculate frequency consistency (last 4 weeks)
   let weeksWithWorkouts = 0;
