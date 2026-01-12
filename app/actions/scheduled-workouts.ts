@@ -679,6 +679,33 @@ export async function scheduleFromTemplate(
   }
 }
 
+// Delete a scheduled workout
+export async function deleteScheduledWorkout(workoutId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    console.log('[Scheduled Workouts] Deleting scheduled workout:', workoutId);
+    const supabase = await getServerSupabase();
+
+    const { error } = await supabase
+      .from('scheduled_workouts')
+      .delete()
+      .eq('id', workoutId);
+
+    if (error) {
+      console.error('[Scheduled Workouts] Error deleting workout:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('[Scheduled Workouts] Workout deleted successfully');
+    revalidatePath('/plan');
+    revalidatePath('/dashboard');
+
+    return { success: true };
+  } catch (error) {
+    console.error('[Scheduled Workouts] Exception deleting workout:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 // Delete a day template
 export async function deleteDayTemplate(templateId: string): Promise<{ success: boolean; error?: string }> {
   try {

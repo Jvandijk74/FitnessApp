@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { getWeekWorkouts, CombinedDayWorkout } from '@/app/actions/plan-helpers';
-import { ScheduledWorkout } from '@/app/actions/scheduled-workouts';
+import { ScheduledWorkout, deleteScheduledWorkout } from '@/app/actions/scheduled-workouts';
 import { TemplateDay } from '@/app/actions/templates';
 
 interface WeeklyTrainingPlanProps {
@@ -15,6 +15,31 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
   const [loading, setLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
+
+  const handleDeleteWorkout = async (workoutId: string, workoutName: string) => {
+    const confirmed = confirm(`Are you sure you want to delete "${workoutName}"?`);
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteScheduledWorkout(workoutId);
+      if (result.success) {
+        // Refresh workouts
+        const now = new Date();
+        const year = now.getFullYear();
+        const jan4 = new Date(year, 0, 4);
+        const daysSinceJan4 = Math.floor((now.getTime() - jan4.getTime()) / 86400000);
+        const week = Math.floor(daysSinceJan4 / 7) + 1;
+
+        const data = await getWeekWorkouts(userId, week, year);
+        setWorkouts(data);
+      } else {
+        alert('Failed to delete workout: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      alert('Failed to delete workout');
+    }
+  };
 
   useEffect(() => {
     // Prevent double-fetching in development strict mode
@@ -193,28 +218,48 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
             const runPace = isScheduled ? scheduledWorkout!.run_target_pace : undefined;
 
             return (
-              <Link
+              <div
                 key={combinedWorkout.day}
-                href="/plan"
-                className="flex-none w-72 snap-start block"
+                className="flex-none w-72 snap-start relative"
               >
-                <div className={`h-full p-5 rounded-xl border-2 transition-all hover:border-primary-500/50 cursor-pointer ${
-                  isToday ? 'bg-primary-500/5 border-primary-500/30' : typeColors[workoutType]
-                }`}>
-                  {/* Day Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
-                        {dayAbbrev[combinedWorkout.day_of_week]}
+                <Link
+                  href="/plan"
+                  className="block h-full"
+                >
+                  <div className={`h-full p-5 rounded-xl border-2 transition-all hover:border-primary-500/50 cursor-pointer ${
+                    isToday ? 'bg-primary-500/5 border-primary-500/30' : typeColors[workoutType]
+                  }`}>
+                    {/* Day Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
+                          {dayAbbrev[combinedWorkout.day_of_week]}
+                        </div>
+                        <div className="text-lg font-bold text-text-primary mt-0.5">
+                          {dayLabels[combinedWorkout.day_of_week]}
+                        </div>
                       </div>
-                      <div className="text-lg font-bold text-text-primary mt-0.5">
-                        {dayLabels[combinedWorkout.day_of_week]}
+                      <div className="flex items-center gap-2">
+                        <div className="text-3xl">
+                          {typeIcons[workoutType]}
+                        </div>
+                        {isScheduled && !isCompleted && scheduledWorkout && (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteWorkout(scheduledWorkout.id!, scheduledWorkout.name);
+                            }}
+                            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors"
+                            title="Delete workout"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="text-3xl">
-                      {typeIcons[workoutType]}
-                    </div>
-                  </div>
 
                   {/* Workout Content */}
                   <div className="space-y-3">
@@ -285,6 +330,7 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
                   </div>
                 </div>
               </Link>
+            </div>
             );
           })}
         </div>

@@ -7,7 +7,7 @@ import { ProgressiveOverloadScore } from '@/components/plan/ProgressiveOverloadS
 import { TrainingDay } from '@/lib/db/types';
 import { getActiveTemplate, WorkoutTemplate, TemplateDay } from '@/app/actions/templates';
 import { getWeekWorkouts, CombinedDayWorkout } from '@/app/actions/plan-helpers';
-import { ScheduledWorkout, completeWorkout, getScheduledWorkout } from '@/app/actions/scheduled-workouts';
+import { ScheduledWorkout, completeWorkout, getScheduledWorkout, deleteScheduledWorkout } from '@/app/actions/scheduled-workouts';
 import Link from 'next/link';
 
 interface Exercise {
@@ -145,9 +145,15 @@ const WEEK_WORKOUTS: DayWorkout[] = [
 
 function getCurrentWeek() {
   const now = new Date();
-  const onejan = new Date(now.getFullYear(), 0, 1);
-  const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-  return { week, year: now.getFullYear() };
+  const year = now.getFullYear();
+
+  // ISO week calculation (matches server's getWeekStartDate function)
+  // Week 1 is the week containing Jan 4
+  const jan4 = new Date(year, 0, 4);
+  const daysSinceJan4 = Math.floor((now.getTime() - jan4.getTime()) / 86400000);
+  const week = Math.floor(daysSinceJan4 / 7) + 1;
+
+  return { week, year };
 }
 
 function getWeekStartDate(week: number, year: number): string {
@@ -370,6 +376,7 @@ function CombinedDayCard({
   const [completing, setCompleting] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [aiFeedback, setAiFeedback] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   const dayLabels: Record<TrainingDay, string> = {
     monday: 'Monday',
@@ -443,6 +450,28 @@ function CombinedDayCard({
       alert('Failed to complete workout');
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleDeleteWorkout = async () => {
+    if (!isScheduled || !scheduledWorkout?.id) return;
+
+    const confirmed = confirm(`Are you sure you want to delete this workout?\n\n${scheduledWorkout.name || 'Workout'} on ${dayLabels[combinedWorkout.day_of_week]}`);
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      const result = await deleteScheduledWorkout(scheduledWorkout.id);
+      if (result.success) {
+        onWorkoutCompleted(); // Refresh the list
+      } else {
+        alert('Failed to delete workout: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting workout:', error);
+      alert('Failed to delete workout');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -530,6 +559,21 @@ function CombinedDayCard({
               <p className="text-xs text-white/60">Total Volume</p>
               <p className="text-lg font-bold text-accent">{getTotalVolume()} kg</p>
             </div>
+          )}
+          {isScheduled && !isCompleted && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteWorkout();
+              }}
+              disabled={deleting}
+              className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+              title="Delete workout"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
           )}
           <svg
             className={`w-5 h-5 text-white/60 transition-transform ${expanded ? 'rotate-180' : ''}`}
