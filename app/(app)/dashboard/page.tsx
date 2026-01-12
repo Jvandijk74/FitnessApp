@@ -7,8 +7,9 @@ import { generateWeeklyPlan } from '@/lib/coach/engine';
 import { AthleteProfile } from '@/lib/coach/types';
 import { logRun, logStrength } from '@/app/actions/plan';
 import { TrainingDay } from '@/lib/db/types';
+import { DEMO_USER_ID } from '@/lib/constants';
 
-const DEMO_USER = 'demo-user';
+const DEMO_USER = DEMO_USER_ID;
 
 async function saveRun(formData: FormData) {
   'use server';

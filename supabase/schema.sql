@@ -93,5 +93,8 @@ create table if not exists strava_connections (
   access_token text not null,
   refresh_token text not null,
   athlete_id bigint,
-  created_at timestamptz default now()
+  expires_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique(user_id)
 );
