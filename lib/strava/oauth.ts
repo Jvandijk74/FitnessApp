@@ -339,7 +339,7 @@ export async function fetchActivityDetail(accessToken: string, activityId: strin
       average_heartrate: activity.average_heartrate,
       max_heartrate: activity.max_heartrate,
       calories: activity.calories,
-      map: activity.map?.summary_polyline,
+      map: activity.map,
       splits_metric: activity.splits_metric,
       laps: activity.laps
     };
