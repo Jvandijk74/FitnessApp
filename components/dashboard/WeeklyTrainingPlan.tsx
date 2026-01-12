@@ -24,16 +24,20 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
     async function fetchWorkouts() {
       setLoading(true);
       try {
-        // Calculate current week
+        // Calculate current week using ISO week date standard (same as server)
         const now = new Date();
         console.log('[WeeklyTrainingPlan] 📅 Current date:', now.toISOString());
         console.log('[WeeklyTrainingPlan] 📅 Current date (local):', now.toString());
 
-        const onejan = new Date(now.getFullYear(), 0, 1);
-        const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
         const year = now.getFullYear();
 
-        console.log('[WeeklyTrainingPlan] 🔢 Calculated week number:', week);
+        // ISO week calculation (matches server's getWeekStartDate function)
+        // Week 1 is the week containing Jan 4
+        const jan4 = new Date(year, 0, 4);
+        const daysSinceJan4 = Math.floor((now.getTime() - jan4.getTime()) / 86400000);
+        const week = Math.floor(daysSinceJan4 / 7) + 1;
+
+        console.log('[WeeklyTrainingPlan] 🔢 Calculated ISO week number:', week);
         console.log('[WeeklyTrainingPlan] 🔢 Year:', year);
         console.log('[WeeklyTrainingPlan] ⚙️  Calling getWeekWorkouts...');
 
@@ -94,10 +98,18 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
 
   const getWeekDateString = () => {
     const now = new Date();
-    const onejan = new Date(now.getFullYear(), 0, 1);
-    const week = Math.ceil((((now.getTime() - onejan.getTime()) / 86400000) + onejan.getDay() + 1) / 7);
-    const startDate = new Date(now.getFullYear(), 0, 1 + (week - 1) * 7);
-    return `Week starting ${startDate.toISOString().split('T')[0]}`;
+    const year = now.getFullYear();
+
+    // ISO week calculation (matches server's getWeekStartDate function)
+    const jan4 = new Date(year, 0, 4);
+    const daysSinceJan4 = Math.floor((now.getTime() - jan4.getTime()) / 86400000);
+    const week = Math.floor(daysSinceJan4 / 7) + 1;
+
+    // Calculate week start date (Monday)
+    const daysToAdd = (week - 1) * 7 - jan4.getDay() + 1;
+    const weekStart = new Date(year, 0, 4 + daysToAdd);
+
+    return `Week starting ${weekStart.toISOString().split('T')[0]}`;
   };
 
   if (loading) {
