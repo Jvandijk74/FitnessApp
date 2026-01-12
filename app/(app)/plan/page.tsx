@@ -480,7 +480,8 @@ function CombinedDayCard({
 
     setCompleting(true);
     try {
-      const result = await completeWorkout(scheduledWorkout.id, 'demo-user');
+      console.log('[Workout Log] Completing workout with logged sets:', loggedSets);
+      const result = await completeWorkout(scheduledWorkout.id, 'demo-user', loggedSets);
       if (result.success) {
         clearSavedData(); // Clear localStorage after successful completion
         setShowFeedback(true);

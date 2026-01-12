@@ -292,7 +292,11 @@ export async function getScheduledWorkout(workoutId: string): Promise<ScheduledW
 }
 
 // Complete a workout and generate AI feedback
-export async function completeWorkout(workoutId: string, userId: string) {
+export async function completeWorkout(
+  workoutId: string,
+  userId: string,
+  loggedSets?: { [exerciseName: string]: Array<{ weight: number; reps: number; rpe?: number; rir?: number }> }
+) {
   try {
     const supabase = await getServerSupabase();
 
@@ -300,6 +304,36 @@ export async function completeWorkout(workoutId: string, userId: string) {
     const workout = await getScheduledWorkout(workoutId);
     if (!workout) {
       throw new Error('Workout not found');
+    }
+
+    // Save logged sets to exercises if provided
+    if (loggedSets && workout.workout_type === 'strength' && workout.exercises) {
+      console.log('[Complete Workout] Saving logged sets to database:', loggedSets);
+
+      for (const exercise of workout.exercises) {
+        const exerciseName = exercise.exercise_name;
+        const sets = loggedSets[exerciseName];
+
+        if (sets && sets.length > 0) {
+          console.log(`[Complete Workout] Updating exercise "${exerciseName}" with ${sets.length} sets`);
+
+          const { error: exerciseUpdateError } = await supabase
+            .from('scheduled_workout_exercises')
+            .update({
+              logged_sets: sets,
+              completed: true
+            })
+            .eq('id', exercise.id);
+
+          if (exerciseUpdateError) {
+            console.error('[Complete Workout] Error updating exercise:', exerciseUpdateError);
+          }
+
+          // Update the workout object with logged sets for AI feedback generation
+          exercise.logged_sets = sets;
+          exercise.completed = true;
+        }
+      }
     }
 
     // Mark as completed

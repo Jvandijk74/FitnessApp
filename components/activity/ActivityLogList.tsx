@@ -73,7 +73,8 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
             key={activity.id}
             onClick={() => handleActivityClick(activity)}
             className={`card transition-colors ${
-              (activity.source === 'strava' || (activity.source === 'scheduled' && activity.aiFeedback))
+              (activity.source === 'strava' ||
+               (activity.source === 'scheduled' && (activity.aiFeedback || (activity.type === 'strength' && activity.exercises))))
                 ? 'hover:border-primary-500/20 cursor-pointer'
                 : ''
             }`}
@@ -151,6 +152,13 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
                     <div className="mt-2 p-3 bg-surface-elevated rounded-lg text-xs text-text-secondary">
                       <p className="line-clamp-2">{activity.aiFeedback}</p>
                       <p className="text-primary-400 mt-1">Click to view full analysis →</p>
+                    </div>
+                  )}
+
+                  {/* Strength Workout Details Hint */}
+                  {activity.type === 'strength' && activity.exercises && activity.exercises.length > 0 && !activity.aiFeedback && (
+                    <div className="mt-2 text-xs text-primary-400">
+                      Click to view exercise details →
                     </div>
                   )}
                 </div>
@@ -250,6 +258,49 @@ export function ActivityLogList({ activities, userId }: ActivityLogListProps) {
                 </>
               )}
             </div>
+
+            {/* Exercise Details for Strength Workouts */}
+            {selectedActivity.type === 'strength' && selectedActivity.exercises && selectedActivity.exercises.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-text-primary mb-4">Exercise Details</h3>
+                <div className="space-y-4">
+                  {selectedActivity.exercises.map((exercise: any, index: number) => (
+                    <div key={index} className="bg-surface-elevated rounded-lg p-4 border border-white/10">
+                      <h4 className="font-semibold text-text-primary mb-3">{exercise.exercise_name}</h4>
+
+                      {exercise.logged_sets && exercise.logged_sets.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="grid grid-cols-12 gap-2 text-xs text-text-tertiary font-medium mb-2">
+                            <div className="col-span-2">Set</div>
+                            <div className="col-span-3">Weight (kg)</div>
+                            <div className="col-span-3">Reps</div>
+                            <div className="col-span-2">RPE</div>
+                            <div className="col-span-2">Volume</div>
+                          </div>
+                          {exercise.logged_sets.map((set: any, setIndex: number) => (
+                            <div key={setIndex} className="grid grid-cols-12 gap-2 text-sm">
+                              <div className="col-span-2 text-text-tertiary">{setIndex + 1}</div>
+                              <div className="col-span-3 text-text-primary font-semibold">{set.weight || 0} kg</div>
+                              <div className="col-span-3 text-text-primary font-semibold">{set.reps || 0}</div>
+                              <div className="col-span-2 text-text-secondary">{set.rpe || '-'}</div>
+                              <div className="col-span-2 text-accent-400 font-medium">{((set.weight || 0) * (set.reps || 0)).toFixed(0)} kg</div>
+                            </div>
+                          ))}
+                          <div className="mt-2 pt-2 border-t border-white/10 text-sm">
+                            <span className="text-text-tertiary">Exercise Total: </span>
+                            <span className="text-accent-400 font-bold">
+                              {exercise.logged_sets.reduce((sum: number, set: any) => sum + (set.weight || 0) * (set.reps || 0), 0).toFixed(0)} kg
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-text-tertiary text-sm">No sets logged</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* AI Feedback */}
             {selectedActivity.aiFeedback && (
