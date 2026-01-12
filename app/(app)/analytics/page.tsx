@@ -1,6 +1,7 @@
 import { StatsCard } from '@/components/stats/StatsCard';
 import { getMonthlyAnalytics, calculateHealthMetrics } from '@/app/actions/metrics';
 import { AIAnalysis } from '@/components/analytics/AIAnalysis';
+import { ProgressionMetricsDisplay } from '@/components/analytics/ProgressionMetrics';
 
 const DEMO_USER = 'demo-user';
 
@@ -283,6 +284,9 @@ export default async function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Progression Metrics & Training Stress Balance */}
+      <ProgressionMetricsDisplay userId={DEMO_USER} />
 
       {/* AI Training Analysis */}
       <AIAnalysis userId={DEMO_USER} />
