@@ -66,6 +66,30 @@ export async function calculateBMR(userId: string): Promise<number | null> {
 }
 
 /**
+ * Get planned workouts for a specific day
+ */
+export async function getPlannedWorkouts(userId: string, date: string) {
+  console.log('[getPlannedWorkouts] 🔄 Fetching workouts for:', userId, date);
+
+  const supabase = await getServerSupabase();
+
+  const { data: workouts, error } = await supabase
+    .from('scheduled_workouts')
+    .select('workout_type, name, run_duration_minutes, run_intensity, run_distance_km, description')
+    .eq('user_id', userId)
+    .eq('workout_date', date)
+    .eq('completed', false);
+
+  if (error) {
+    console.error('[getPlannedWorkouts] ❌ Error fetching workouts:', error);
+    return [];
+  }
+
+  console.log('[getPlannedWorkouts] ✅ Found workouts:', workouts?.length || 0);
+  return workouts || [];
+}
+
+/**
  * Get activity multiplier based on planned workouts for a specific day
  * This looks at scheduled workouts to determine activity level
  */

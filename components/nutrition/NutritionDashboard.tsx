@@ -22,9 +22,10 @@ interface NutritionDashboardProps {
     totalFat: number;
     meals: NutritionLog[];
   } | null;
+  plannedWorkouts?: any[];
 }
 
-export function NutritionDashboard({ userId, date, requirements, summary }: NutritionDashboardProps) {
+export function NutritionDashboard({ userId, date, requirements, summary, plannedWorkouts = [] }: NutritionDashboardProps) {
   const router = useRouter();
   const [isAddingMeal, setIsAddingMeal] = useState(false);
   const [mealForm, setMealForm] = useState({
@@ -36,6 +37,9 @@ export function NutritionDashboard({ userId, date, requirements, summary }: Nutr
     fat_grams: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [explanation, setExplanation] = useState('');
+  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
 
   const handleSubmitMeal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,6 +85,68 @@ export function NutritionDashboard({ userId, date, requirements, summary }: Nutr
       router.refresh();
     } catch (error) {
       console.error('Error deleting meal:', error);
+    }
+  };
+
+  const handleExplainGoals = async () => {
+    if (explanation && showExplanation) {
+      // If explanation is already shown, just toggle it
+      setShowExplanation(false);
+      return;
+    }
+
+    if (explanation) {
+      // If we already have an explanation, just show it
+      setShowExplanation(true);
+      return;
+    }
+
+    // Fetch new explanation
+    setIsLoadingExplanation(true);
+    setShowExplanation(true);
+
+    try {
+      // Build workout context
+      let workoutContext = '';
+      if (plannedWorkouts.length > 0) {
+        workoutContext = '\n\nPlanned Workouts for Today:\n';
+        plannedWorkouts.forEach((workout, index) => {
+          workoutContext += `${index + 1}. ${workout.name || workout.workout_type}`;
+          if (workout.workout_type === 'run') {
+            if (workout.run_duration_minutes) workoutContext += ` - ${workout.run_duration_minutes} min`;
+            if (workout.run_intensity) workoutContext += ` (${workout.run_intensity})`;
+            if (workout.run_distance_km) workoutContext += ` - ${workout.run_distance_km}km`;
+          }
+          workoutContext += '\n';
+        });
+      } else {
+        workoutContext = '\n\nNo workouts planned for today (rest day)';
+      }
+
+      const prompt = `Based on my profile and today's planned activities, explain in maximum 5 sentences why my daily nutrition goals are set to ${requirements?.calories} calories, ${requirements?.protein}g protein, ${requirements?.carbs}g carbs, and ${requirements?.fat}g fat. Reference my specific planned workouts for today.`;
+
+      const response = await fetch('/api/nutrition/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: prompt }],
+          context: `User ID: ${userId}\nDate: ${date}\n\nDaily Goals:\n- Calories: ${requirements?.calories} kcal\n- Protein: ${requirements?.protein}g\n- Carbs: ${requirements?.carbs}g\n- Fat: ${requirements?.fat}g${workoutContext}`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get explanation');
+      }
+
+      const data = await response.json();
+      setExplanation(data.message);
+    } catch (error) {
+      console.error('Error getting explanation:', error);
+      setExplanation('Unable to generate explanation at this time. Please try again later.');
+    } finally {
+      setIsLoadingExplanation(false);
     }
   };
 
@@ -188,11 +254,33 @@ export function NutritionDashboard({ userId, date, requirements, summary }: Nutr
           </div>
         </div>
 
-        <div className="mt-4 p-3 rounded-lg bg-surface-elevated">
-          <p className="text-xs text-text-tertiary">
-            💡 Your daily requirements are calculated based on your profile and today's planned activities.
-            Higher activity days will show increased calorie and carb targets.
-          </p>
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-text-tertiary">
+              💡 Your daily requirements are calculated based on your profile and today's planned activities.
+            </p>
+            <button
+              onClick={handleExplainGoals}
+              disabled={isLoadingExplanation}
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary-500/10 text-primary-400 hover:bg-primary-500/20 transition disabled:opacity-50 whitespace-nowrap"
+            >
+              {isLoadingExplanation ? 'Loading...' : showExplanation ? 'Hide Explanation' : '🤖 Explain My Goals'}
+            </button>
+          </div>
+
+          {showExplanation && (
+            <div className="p-3 rounded-lg bg-surface border border-primary-500/20 animate-in slide-in-from-top">
+              {isLoadingExplanation ? (
+                <div className="flex items-center gap-2 text-sm text-text-secondary">
+                  <div className="animate-pulse">Generating explanation...</div>
+                </div>
+              ) : (
+                <p className="text-sm text-text-secondary whitespace-pre-wrap">
+                  {explanation}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

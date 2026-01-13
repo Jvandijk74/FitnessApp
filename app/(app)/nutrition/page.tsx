@@ -1,4 +1,4 @@
-import { calculateMacros, getDailyNutritionSummary } from '@/app/actions/nutrition';
+import { calculateMacros, getDailyNutritionSummary, getPlannedWorkouts } from '@/app/actions/nutrition';
 import { NutritionDashboard } from '@/components/nutrition/NutritionDashboard';
 import { NutritionCoach } from '@/components/nutrition/NutritionCoach';
 
@@ -24,6 +24,14 @@ export default async function NutritionPage() {
     console.error('[Nutrition] Error fetching nutrition summary:', error);
   }
 
+  // Get today's planned workouts
+  let plannedWorkouts = [];
+  try {
+    plannedWorkouts = await getPlannedWorkouts(DEMO_USER, today);
+  } catch (error) {
+    console.error('[Nutrition] Error fetching planned workouts:', error);
+  }
+
   return (
     <div className="space-y-6 max-w-7xl">
       {/* Page Header */}
@@ -43,6 +51,7 @@ export default async function NutritionPage() {
             date={today}
             requirements={dailyRequirements}
             summary={nutritionSummary}
+            plannedWorkouts={plannedWorkouts}
           />
         </div>
 
