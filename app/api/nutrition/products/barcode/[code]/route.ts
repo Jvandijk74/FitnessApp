@@ -3,10 +3,11 @@ import { getProductByBarcode } from '@/lib/nutrition/openfoodfacts';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    const barcode = params.code;
+    const { code } = await params;
+    const barcode = code;
 
     if (!barcode) {
       return NextResponse.json(
