@@ -1,5 +1,7 @@
 import { StravaConnect } from '@/components/integrations/StravaConnect';
 import { getStravaConnection, syncStravaActivities } from '@/app/actions/strava';
+import { getUserProfile } from '@/app/actions/nutrition';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
 
 const DEMO_USER = 'demo-user';
 
@@ -12,6 +14,14 @@ export default async function SettingsPage() {
     console.error('[Settings] Error fetching Strava connection:', error);
   }
 
+  // Fetch user profile
+  let userProfile = null;
+  try {
+    userProfile = await getUserProfile(DEMO_USER);
+  } catch (error) {
+    console.error('[Settings] Error fetching user profile:', error);
+  }
+
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Page Header */}
@@ -20,28 +30,8 @@ export default async function SettingsPage() {
         <p className="text-text-secondary">Manage your preferences and account settings</p>
       </div>
 
-      {/* Profile Settings */}
-      <div className="card">
-        <h3 className="text-lg font-semibold text-text-primary mb-4">Profile</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">Name</label>
-            <input
-              type="text"
-              defaultValue="Demo User"
-              className="w-full px-4 py-2 rounded-lg border border-surface-elevated bg-surface text-text-primary focus:outline-none focus:border-primary-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">Email</label>
-            <input
-              type="email"
-              defaultValue="demo@fitness.app"
-              className="w-full px-4 py-2 rounded-lg border border-surface-elevated bg-surface text-text-primary focus:outline-none focus:border-primary-500"
-            />
-          </div>
-        </div>
-      </div>
+      {/* Profile Settings with Body Metrics */}
+      {userProfile && <ProfileSettings user={userProfile} />}
 
       {/* Training Settings */}
       <div className="card">

@@ -14,6 +14,7 @@ const navItems: NavItem[] = [
   { name: 'Training Plan', href: '/plan', icon: '📅' },
   { name: 'Create Training', href: '/create-training', icon: '✏️' },
   { name: 'AI Coach', href: '/coach', icon: '🤖' },
+  { name: 'Nutrition', href: '/nutrition', icon: '🥗' },
   { name: 'Activity Log', href: '/log', icon: '📝' },
   { name: 'Analytics', href: '/analytics', icon: '📈' },
   { name: 'Settings', href: '/settings', icon: '⚙️' },
