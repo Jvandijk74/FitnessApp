@@ -204,29 +204,20 @@ export function ProductSearch({ onSelectProduct, onCancel, defaultMealType = 'br
                   onClick={() => setSelectedProduct(product)}
                   className="w-full p-3 rounded-lg bg-surface-elevated hover:bg-surface border border-transparent hover:border-primary-500/20 transition text-left"
                 >
-                  <div className="flex items-start gap-3">
-                    {product.imageUrl && (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        className="w-12 h-12 object-cover rounded"
-                      />
+                  <div>
+                    <p className="font-medium text-text-primary">{product.name}</p>
+                    {product.brand && (
+                      <p className="text-xs text-text-tertiary">{product.brand}</p>
                     )}
-                    <div className="flex-1">
-                      <p className="font-medium text-text-primary">{product.name}</p>
-                      {product.brand && (
-                        <p className="text-xs text-text-tertiary">{product.brand}</p>
-                      )}
-                      <div className="flex gap-3 mt-1 text-xs text-text-secondary">
-                        <span>{product.calories} kcal</span>
-                        <span>P: {product.protein}g</span>
-                        <span>C: {product.carbs}g</span>
-                        <span>F: {product.fat}g</span>
-                      </div>
-                      {product.servingSize && (
-                        <p className="text-xs text-text-tertiary mt-1">per {product.servingSize}</p>
-                      )}
+                    <div className="flex gap-3 mt-1 text-xs text-text-secondary">
+                      <span>{product.calories} kcal</span>
+                      <span>P: {product.protein}g</span>
+                      <span>C: {product.carbs}g</span>
+                      <span>F: {product.fat}g</span>
                     </div>
+                    {product.servingSize && (
+                      <p className="text-xs text-text-tertiary mt-1">per {product.servingSize}</p>
+                    )}
                   </div>
                 </button>
               ))}
@@ -236,29 +227,20 @@ export function ProductSearch({ onSelectProduct, onCancel, defaultMealType = 'br
           {/* Selected Product */}
           {selectedProduct && (
             <div className="p-4 rounded-lg bg-surface border border-primary-500/20">
-              <div className="flex items-start gap-3 mb-4">
-                {selectedProduct.imageUrl && (
-                  <img
-                    src={selectedProduct.imageUrl}
-                    alt={selectedProduct.name}
-                    className="w-16 h-16 object-cover rounded"
-                  />
+              <div className="mb-4">
+                <p className="font-semibold text-text-primary">{selectedProduct.name}</p>
+                {selectedProduct.brand && (
+                  <p className="text-sm text-text-secondary">{selectedProduct.brand}</p>
                 )}
-                <div className="flex-1">
-                  <p className="font-semibold text-text-primary">{selectedProduct.name}</p>
-                  {selectedProduct.brand && (
-                    <p className="text-sm text-text-secondary">{selectedProduct.brand}</p>
-                  )}
-                  <div className="flex gap-4 mt-2 text-sm text-text-secondary">
-                    <span>{selectedProduct.calories} kcal</span>
-                    <span>P: {selectedProduct.protein}g</span>
-                    <span>C: {selectedProduct.carbs}g</span>
-                    <span>F: {selectedProduct.fat}g</span>
-                  </div>
-                  {selectedProduct.servingSize && (
-                    <p className="text-xs text-text-tertiary mt-1">per {selectedProduct.servingSize}</p>
-                  )}
+                <div className="flex gap-4 mt-2 text-sm text-text-secondary">
+                  <span>{selectedProduct.calories} kcal</span>
+                  <span>P: {selectedProduct.protein}g</span>
+                  <span>C: {selectedProduct.carbs}g</span>
+                  <span>F: {selectedProduct.fat}g</span>
                 </div>
+                {selectedProduct.servingSize && (
+                  <p className="text-xs text-text-tertiary mt-1">per {selectedProduct.servingSize}</p>
+                )}
               </div>
 
               <div className="mb-4">

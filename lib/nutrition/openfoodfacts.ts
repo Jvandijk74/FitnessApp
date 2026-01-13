@@ -46,19 +46,25 @@ const API_BASE_URL = 'https://world.openfoodfacts.org/api/v2';
 
 /**
  * Search for products by name
+ * Optimized to only fetch essential nutritional data for fast response
  */
 export async function searchProducts(
   query: string,
   page: number = 1,
-  pageSize: number = 20
+  pageSize: number = 10 // Reduced from 20 for faster response
 ): Promise<SimplifiedProduct[]> {
   try {
+    // Only request essential fields - no images for speed
+    const fields = 'code,product_name,brands,serving_size,nutriments';
+
     const response = await fetch(
-      `${API_BASE_URL}/search?search_terms=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}&fields=code,product_name,brands,quantity,serving_size,nutriments,image_small_url`,
+      `${API_BASE_URL}/search?search_terms=${encodeURIComponent(query)}&page=${page}&page_size=${pageSize}&fields=${fields}`,
       {
         headers: {
           'User-Agent': 'FitnessApp/1.0.0',
         },
+        // Add timeout for faster failure
+        signal: AbortSignal.timeout(10000), // 10 second timeout
       }
     );
 
@@ -76,15 +82,21 @@ export async function searchProducts(
 
 /**
  * Get product by barcode
+ * Optimized to only fetch essential nutritional data for fast response
  */
 export async function getProductByBarcode(barcode: string): Promise<SimplifiedProduct | null> {
   try {
+    // Only request essential fields - no images for speed
+    const fields = 'code,product_name,brands,serving_size,nutriments';
+
     const response = await fetch(
-      `${API_BASE_URL}/product/${barcode}?fields=code,product_name,brands,quantity,serving_size,nutriments,image_small_url`,
+      `${API_BASE_URL}/product/${barcode}?fields=${fields}`,
       {
         headers: {
           'User-Agent': 'FitnessApp/1.0.0',
         },
+        // Add timeout for faster failure
+        signal: AbortSignal.timeout(8000), // 8 second timeout
       }
     );
 
@@ -127,12 +139,11 @@ function simplifyProduct(product: OpenFoodFactsProduct): SimplifiedProduct | nul
       barcode: product.code,
       name: product.product_name || 'Unknown Product',
       brand: product.brands,
-      servingSize: product.serving_size || product.quantity,
+      servingSize: product.serving_size,
       calories: Math.round(caloriesServing),
       protein: Math.round(proteinServing * 10) / 10,
       carbs: Math.round(carbsServing * 10) / 10,
       fat: Math.round(fatServing * 10) / 10,
-      imageUrl: product.image_small_url,
     };
   }
 
@@ -147,7 +158,6 @@ function simplifyProduct(product: OpenFoodFactsProduct): SimplifiedProduct | nul
       protein: Math.round(protein100g * 10) / 10,
       carbs: Math.round(carbs100g * 10) / 10,
       fat: Math.round(fat100g * 10) / 10,
-      imageUrl: product.image_small_url,
     };
   }
 
