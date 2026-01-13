@@ -93,7 +93,13 @@ export interface NutritionLog {
   user_id: string;
   log_date: string;
   meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack';
-  meal_name: string;
+  name: string; // Product or meal name
+  product_name?: string;
+  product_brand?: string;
+  barcode?: string;
+  serving_size?: number;
+  serving_unit?: string;
+  openfoodfacts_id?: string;
   calories: number;
   protein_grams: number;
   carbs_grams: number;
@@ -109,4 +115,5 @@ export interface DailyNutritionSummary {
   totalCarbs: number;
   totalFat: number;
   meals: NutritionLog[];
+  products: NutritionLog[]; // Alias for meals (backwards compatibility)
 }
