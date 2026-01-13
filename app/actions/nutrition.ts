@@ -9,6 +9,8 @@ import { NutritionGoal, NutritionLog, User } from '@/lib/db/types';
  * For women: BMR = (10 × weight in kg) + (6.25 × height in cm) - (5 × age in years) - 161
  */
 export async function calculateBMR(userId: string): Promise<number | null> {
+  console.log('[calculateBMR] 🔄 Calculating BMR for user:', userId);
+
   const supabase = await getServerSupabase();
 
   const { data: user, error } = await supabase
@@ -17,7 +19,31 @@ export async function calculateBMR(userId: string): Promise<number | null> {
     .eq('id', userId)
     .single();
 
-  if (error || !user || !user.age || !user.weight_kg || !user.height_cm) {
+  if (error) {
+    console.error('[calculateBMR] ❌ Error fetching user data:', error);
+    console.error('[calculateBMR] Error code:', error.code);
+    console.error('[calculateBMR] Error message:', error.message);
+    return null;
+  }
+
+  if (!user) {
+    console.warn('[calculateBMR] ⚠️ User not found');
+    return null;
+  }
+
+  console.log('[calculateBMR] User data fetched:', {
+    age: user.age,
+    weight_kg: user.weight_kg,
+    height_cm: user.height_cm,
+    gender: user.gender,
+  });
+
+  if (!user.age || !user.weight_kg || !user.height_cm) {
+    console.warn('[calculateBMR] ⚠️ Missing required profile data:', {
+      hasAge: !!user.age,
+      hasWeight: !!user.weight_kg,
+      hasHeight: !!user.height_cm,
+    });
     return null;
   }
 
@@ -25,14 +51,18 @@ export async function calculateBMR(userId: string): Promise<number | null> {
 
   const baseBMR = (10 * weight_kg) + (6.25 * height_cm) - (5 * age);
 
+  let bmr: number;
   if (gender === 'male') {
-    return baseBMR + 5;
+    bmr = baseBMR + 5;
   } else if (gender === 'female') {
-    return baseBMR - 161;
+    bmr = baseBMR - 161;
   } else {
     // For 'other', use average of male and female
-    return baseBMR - 78;
+    bmr = baseBMR - 78;
   }
+
+  console.log('[calculateBMR] ✅ BMR calculated:', bmr);
+  return bmr;
 }
 
 /**
@@ -275,6 +305,8 @@ export async function deleteMeal(mealId: string): Promise<boolean> {
  * Get user profile for nutrition calculations
  */
 export async function getUserProfile(userId: string): Promise<User | null> {
+  console.log('[getUserProfile] 🔄 Fetching profile for user:', userId);
+
   const supabase = await getServerSupabase();
 
   const { data, error } = await supabase
@@ -284,9 +316,22 @@ export async function getUserProfile(userId: string): Promise<User | null> {
     .single();
 
   if (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('[getUserProfile] ❌ Error fetching user profile:', error);
+    console.error('[getUserProfile] Error code:', error.code);
+    console.error('[getUserProfile] Error message:', error.message);
     return null;
   }
+
+  console.log('[getUserProfile] ✅ Profile fetched successfully');
+  console.log('[getUserProfile] Profile data:', {
+    id: data.id,
+    email: data.email,
+    age: data.age,
+    weight_kg: data.weight_kg,
+    height_cm: data.height_cm,
+    gender: data.gender,
+    activity_level: data.activity_level,
+  });
 
   return data;
 }
@@ -298,19 +343,65 @@ export async function updateUserProfile(
   userId: string,
   updates: Partial<Pick<User, 'age' | 'weight_kg' | 'height_cm' | 'gender' | 'activity_level'>>
 ): Promise<User | null> {
+  console.log('[updateUserProfile] 🔄 Starting update...');
+  console.log('[updateUserProfile] User ID:', userId);
+  console.log('[updateUserProfile] Updates:', updates);
+
   const supabase = await getServerSupabase();
 
-  const { data, error } = await supabase
-    .from('users')
-    .update(updates)
-    .eq('id', userId)
-    .select()
-    .single();
+  try {
+    // First check if user exists
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
 
-  if (error) {
-    console.error('Error updating user profile:', error);
-    return null;
+    if (fetchError) {
+      console.error('[updateUserProfile] ❌ Error fetching user:', fetchError);
+      throw new Error(`Failed to fetch user: ${fetchError.message}`);
+    }
+
+    console.log('[updateUserProfile] ✅ User found:', existingUser);
+
+    // Check which columns exist in the table
+    console.log('[updateUserProfile] Existing user data:', {
+      id: existingUser.id,
+      email: existingUser.email,
+      age: existingUser.age,
+      weight_kg: existingUser.weight_kg,
+      height_cm: existingUser.height_cm,
+      gender: existingUser.gender,
+      activity_level: existingUser.activity_level,
+    });
+
+    // Perform the update
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[updateUserProfile] ❌ Error updating user profile:', error);
+      console.error('[updateUserProfile] Error code:', error.code);
+      console.error('[updateUserProfile] Error message:', error.message);
+      console.error('[updateUserProfile] Error details:', error.details);
+      console.error('[updateUserProfile] Error hint:', error.hint);
+
+      // Check if error is due to missing columns
+      if (error.message.includes('column') || error.code === '42703') {
+        throw new Error('Database schema missing required columns. Please run migration: 006_nutrition_tables.sql');
+      }
+
+      throw new Error(`Failed to update profile: ${error.message}`);
+    }
+
+    console.log('[updateUserProfile] ✅ Profile updated successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('[updateUserProfile] ❌ Exception caught:', error);
+    throw error;
   }
-
-  return data;
 }

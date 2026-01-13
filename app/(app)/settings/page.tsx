@@ -31,6 +31,32 @@ export default async function SettingsPage() {
       </div>
 
       {/* Profile Settings with Body Metrics */}
+      {!userProfile && (
+        <div className="card border-2 border-yellow-500/50 bg-yellow-500/10">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary mb-2">Database Migration Required</h3>
+              <p className="text-sm text-text-secondary mb-3">
+                The nutrition tracking features require a database migration to add profile fields (age, weight, height, gender).
+              </p>
+              <div className="space-y-2">
+                <p className="text-sm text-text-secondary">
+                  <strong>To enable profile settings and nutrition tracking:</strong>
+                </p>
+                <ol className="list-decimal list-inside text-sm text-text-secondary space-y-1 ml-2">
+                  <li>Open your Supabase dashboard</li>
+                  <li>Navigate to SQL Editor</li>
+                  <li>Run the migration file: <code className="px-2 py-1 bg-surface rounded text-xs">supabase/migrations/006_nutrition_tables.sql</code></li>
+                </ol>
+                <p className="text-xs text-text-tertiary mt-3">
+                  See <code className="px-1 bg-surface rounded">supabase/migrations/README.md</code> for detailed instructions.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {userProfile && <ProfileSettings user={userProfile} />}
 
       {/* Training Settings */}

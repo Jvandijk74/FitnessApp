@@ -23,6 +23,10 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
     setIsSaving(true);
     setSaveMessage('');
 
+    console.log('[ProfileSettings] Starting profile save...');
+    console.log('[ProfileSettings] User ID:', user.id);
+    console.log('[ProfileSettings] Form data:', formData);
+
     try {
       const updates = {
         age: formData.age ? parseInt(formData.age as string) : undefined,
@@ -31,12 +35,32 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
         gender: formData.gender as 'male' | 'female' | 'other',
       };
 
-      await updateUserProfile(user.id, updates);
+      console.log('[ProfileSettings] Updates to send:', updates);
+
+      const result = await updateUserProfile(user.id, updates);
+
+      console.log('[ProfileSettings] Update result:', result);
+
+      if (!result) {
+        throw new Error('No result returned from updateUserProfile - database columns may not exist yet');
+      }
+
       setSaveMessage('Profile saved successfully!');
-      setTimeout(() => setSaveMessage(''), 3000);
+      console.log('[ProfileSettings] Profile saved successfully');
+
+      // Refresh the page after a short delay to show updated data
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
-      setSaveMessage('Error saving profile. Please try again.');
-      console.error('Error saving profile:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setSaveMessage(`Error: ${errorMessage}`);
+      console.error('[ProfileSettings] ❌ Error saving profile:', error);
+      console.error('[ProfileSettings] Error details:', {
+        message: errorMessage,
+        error: error,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     } finally {
       setIsSaving(false);
     }
