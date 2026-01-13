@@ -1,0 +1,201 @@
+'use server';
+
+import { getServerSupabase } from '@/lib/db/server-client';
+import { fetchRecentRuns, fetchActivityDetail, fetchActivityStreams, refreshAccessToken } from '@/lib/strava/oauth';
+import { revalidatePath } from 'next/cache';
+
+interface StravaRun {
+  id: number;
+  distance_km: number;
+  duration_minutes: number;
+  avg_hr?: number;
+  max_hr?: number;
+  start_date: string;
+}
+
+export async function getStravaConnection(userId: string) {
+  try {
+    console.log('[Strava Actions] Getting Strava connection for user:', userId);
+    const supabase = await getServerSupabase();
+    const { data, error } = await supabase
+      .from('strava_connections')
+      .select('access_token, refresh_token, athlete_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      console.log('[Strava Actions] Query error:', error.message);
+      return null;
+    }
+
+    if (!data) {
+      console.log('[Strava Actions] No Strava connection found for user');
+      return null;
+    }
+
+    console.log('[Strava Actions] Connection found for athlete:', data.athlete_id);
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      athleteId: data.athlete_id,
+      isConnected: true
+    };
+  } catch (error) {
+    console.error('[Strava Actions] Exception in getStravaConnection:', error);
+    console.error('[Strava Actions] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return null;
+  }
+}
+
+export async function syncStravaActivities(userId: string) {
+  try {
+    console.log('[Strava Actions] Starting sync for user:', userId);
+
+    const connection = await getStravaConnection(userId);
+
+    if (!connection) {
+      console.error('[Strava Actions] Sync failed - no connection found');
+      throw new Error('Strava not connected');
+    }
+
+    console.log('[Strava Actions] Connection verified, fetching activities...');
+    const supabase = await getServerSupabase();
+
+    let runs;
+    let accessToken = connection.accessToken;
+
+    try {
+      runs = await fetchRecentRuns(accessToken);
+      console.log('[Strava Actions] Fetched', runs.length, 'activities from Strava');
+    } catch (error) {
+      // If token expired, try refreshing it
+      if (error instanceof Error && error.message.includes('token expired')) {
+        console.log('[Strava Actions] Access token expired, refreshing...');
+
+        try {
+          const newTokens = await refreshAccessToken(connection.refreshToken);
+
+          // Update tokens in database
+          const { error: updateError } = await supabase
+            .from('strava_connections')
+            .update({
+              access_token: newTokens.access_token,
+              refresh_token: newTokens.refresh_token
+            })
+            .eq('user_id', userId);
+
+          if (updateError) {
+            console.error('[Strava Actions] Failed to update tokens:', updateError);
+            throw new Error('Failed to update refreshed tokens');
+          }
+
+          console.log('[Strava Actions] Tokens refreshed, retrying fetch...');
+          accessToken = newTokens.access_token;
+          runs = await fetchRecentRuns(accessToken);
+          console.log('[Strava Actions] Fetched', runs.length, 'activities after token refresh');
+        } catch (refreshError) {
+          console.error('[Strava Actions] Token refresh failed:', refreshError);
+          throw new Error('Strava connection expired. Please reconnect your Strava account.');
+        }
+      } else {
+        console.error('[Strava Actions] Failed to fetch runs from Strava:', error);
+        throw new Error(`Failed to fetch activities from Strava: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    // Import runs to the database
+    const runLogs = runs.map((run: StravaRun) => ({
+      user_id: userId,
+      day: new Date(run.start_date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as any,
+      distance_km: run.distance_km,
+      duration_minutes: run.duration_minutes,
+      avg_hr: run.avg_hr ? Math.round(run.avg_hr) : undefined,
+      max_hr: run.max_hr ? Math.round(run.max_hr) : undefined,
+      activity_date: run.start_date,
+      strava_activity_id: run.id.toString(),
+      source: 'strava' as const
+    }));
+
+    console.log('[Strava Actions] Prepared', runLogs.length, 'run logs for import');
+
+    if (runLogs.length > 0) {
+      try {
+        // Get existing Strava activity IDs to avoid duplicates
+        const { data: existingRuns } = await supabase
+          .from('run_logged')
+          .select('strava_activity_id')
+          .eq('user_id', userId)
+          .not('strava_activity_id', 'is', null);
+
+        const existingIds = new Set(existingRuns?.map(r => r.strava_activity_id) || []);
+
+        // Filter out runs that already exist
+        const newRunLogs = runLogs.filter((log: typeof runLogs[number]) => !existingIds.has(log.strava_activity_id));
+
+        if (newRunLogs.length > 0) {
+          const { error } = await supabase.from('run_logged').insert(newRunLogs);
+          if (error) {
+            console.error('[Strava Actions] Database insert error:', error);
+            throw new Error(`Failed to save activities to database: ${error.message}`);
+          }
+          console.log('[Strava Actions] Successfully inserted', newRunLogs.length, 'new runs into database');
+          console.log('[Strava Actions] Skipped', runLogs.length - newRunLogs.length, 'duplicate runs');
+        } else {
+          console.log('[Strava Actions] All runs already exist in database');
+        }
+      } catch (error) {
+        console.error('[Strava Actions] Exception during database insert:', error);
+        throw error;
+      }
+    } else {
+      console.log('[Strava Actions] No runs fetched from Strava');
+    }
+
+    revalidatePath('/dashboard');
+    revalidatePath('/log');
+    console.log('[Strava Actions] Sync completed successfully');
+
+    return { count: runs.length };
+  } catch (error) {
+    console.error('[Strava Actions] Exception in syncStravaActivities:', error);
+    console.error('[Strava Actions] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
+}
+
+export async function getActivityDetails(userId: string, activityId: string) {
+  try {
+    console.log('[Strava Actions] Fetching activity details for:', activityId);
+
+    const connection = await getStravaConnection(userId);
+    if (!connection) {
+      throw new Error('Strava not connected');
+    }
+
+    // Fetch both activity detail and streams in parallel
+    const [detail, streams] = await Promise.all([
+      fetchActivityDetail(connection.accessToken, activityId),
+      fetchActivityStreams(connection.accessToken, activityId)
+    ]);
+
+    console.log('[Strava Actions] Activity details fetched successfully');
+
+    return {
+      detail,
+      streams
+    };
+  } catch (error) {
+    console.error('[Strava Actions] Exception in getActivityDetails:', error);
+    console.error('[Strava Actions] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
+}

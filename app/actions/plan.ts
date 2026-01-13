@@ -6,7 +6,7 @@ import { AthleteProfile } from '@/lib/coach/types';
 import { TrainingDay } from '@/lib/db/types';
 
 export async function createPlan(userId: string) {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const profile: AthleteProfile = {
     id: userId,
     thresholdPace: 5.0,
@@ -43,7 +43,7 @@ export async function logRun(payload: {
   max_hr?: number;
   rpe?: number;
 }) {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   await supabase.from('run_logged').insert({ ...payload, source: 'manual' }).throwOnError();
 }
 
@@ -53,7 +53,7 @@ export async function logStrength(payload: {
   exercise: string;
   sets: { weight: number; reps: number; rpe?: number; rir?: number }[];
 }) {
-  const supabase = getServerSupabase();
+  const supabase = await getServerSupabase();
   const { data, error } = await supabase
     .from('strength_exercises')
     .insert({

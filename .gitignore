@@ -7,3 +7,4 @@ out
 pnpm-lock.yaml
 yarn.lock
 npm-debug.log*
+*.tsbuildinfo

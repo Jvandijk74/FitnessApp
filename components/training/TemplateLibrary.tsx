@@ -1,0 +1,402 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { DayTemplate, getDayTemplates, scheduleFromTemplate, deleteDayTemplate, updateDayTemplate } from '@/app/actions/scheduled-workouts';
+
+interface TemplateLibraryProps {
+  userId: string;
+  onTemplateSelect?: (template: DayTemplate) => void;
+  mode?: 'select' | 'schedule';
+}
+
+export function TemplateLibrary({ userId, onTemplateSelect, mode = 'select' }: TemplateLibraryProps) {
+  const router = useRouter();
+  const [templates, setTemplates] = useState<DayTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<DayTemplate | null>(null);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduling, setScheduling] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<DayTemplate | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+
+  useEffect(() => {
+    loadTemplates();
+  }, [userId]);
+
+  async function loadTemplates() {
+    setLoading(true);
+    try {
+      const data = await getDayTemplates(userId);
+      setTemplates(data);
+    } catch (error) {
+      console.error('Error loading templates:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSchedule() {
+    if (!selectedTemplate || !scheduleDate) return;
+
+    console.log('[TemplateLibrary] 📅 Scheduling workout...');
+    console.log('[TemplateLibrary] Template:', selectedTemplate.name);
+    console.log('[TemplateLibrary] Date selected:', scheduleDate);
+    console.log('[TemplateLibrary] Date type:', typeof scheduleDate);
+
+    setScheduling(true);
+    try {
+      const result = await scheduleFromTemplate(userId, selectedTemplate.id!, scheduleDate);
+
+      console.log('[TemplateLibrary] ✅ Schedule result:', result);
+
+      if (result.success) {
+        setShowScheduleDialog(false);
+        setSelectedTemplate(null);
+        setScheduleDate('');
+
+        // Refresh the page to show updated workouts
+        console.log('[TemplateLibrary] 🔄 Refreshing router...');
+        router.refresh();
+
+        // Show success message
+        const dateObj = new Date(scheduleDate);
+        const formattedDate = dateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        console.log('[TemplateLibrary] 📅 Formatted date for message:', formattedDate);
+        alert(`✅ Workout scheduled for ${formattedDate}!\n\nGo to Dashboard to see it in your Weekly Training Plan.`);
+      } else {
+        console.error('[TemplateLibrary] ❌ Schedule failed:', result.error);
+        alert('Failed to schedule workout: ' + result.error);
+      }
+    } catch (error) {
+      console.error('[TemplateLibrary] ❌ Exception scheduling workout:', error);
+      alert('Failed to schedule workout');
+    } finally {
+      setScheduling(false);
+    }
+  }
+
+  async function handleDelete(templateId: string, templateName: string, e: React.MouseEvent) {
+    e.stopPropagation(); // Prevent template click handler
+
+    const confirmed = confirm(`Are you sure you want to delete "${templateName}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      const result = await deleteDayTemplate(templateId);
+      if (result.success) {
+        // Reload templates
+        await loadTemplates();
+      } else {
+        alert('Failed to delete template: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      alert('Failed to delete template');
+    }
+  }
+
+  function handleEdit(template: DayTemplate, e: React.MouseEvent) {
+    e.stopPropagation(); // Prevent template click handler
+    setEditingTemplate(template);
+    setEditName(template.name);
+    setEditDescription(template.description || '');
+    setShowEditDialog(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!editingTemplate || !editName.trim()) {
+      alert('Template name is required');
+      return;
+    }
+
+    try {
+      const result = await updateDayTemplate(editingTemplate.id!, {
+        name: editName,
+        description: editDescription
+      });
+
+      if (result.success) {
+        setShowEditDialog(false);
+        setEditingTemplate(null);
+        await loadTemplates();
+      } else {
+        alert('Failed to update template: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error updating template:', error);
+      alert('Failed to update template');
+    }
+  }
+
+  function handleTemplateClick(template: DayTemplate) {
+    if (mode === 'select' && onTemplateSelect) {
+      onTemplateSelect(template);
+    } else if (mode === 'schedule') {
+      setSelectedTemplate(template);
+      setShowScheduleDialog(true);
+      // Set default date to today
+      const today = new Date().toISOString().split('T')[0];
+      setScheduleDate(today);
+    }
+  }
+
+  const typeIcons = {
+    strength: '💪',
+    run: '🏃',
+    rest: '😴'
+  };
+
+  const typeColors = {
+    strength: 'bg-accent-500/20 text-accent-400 border-accent-500/30',
+    run: 'bg-primary-500/20 text-primary-400 border-primary-500/30',
+    rest: 'bg-surface-elevated text-text-secondary border-surface-elevated'
+  };
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="text-center py-12">
+          <p className="text-text-tertiary">Loading templates...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (templates.length === 0) {
+    return (
+      <div className="card">
+        <div className="text-center py-12">
+          <p className="text-4xl mb-4">📋</p>
+          <p className="text-text-primary font-medium mb-2">No Templates Yet</p>
+          <p className="text-text-tertiary text-sm">
+            Create your first workout template to reuse it later
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-text-primary">Your Templates</h3>
+          <p className="text-sm text-text-tertiary">{templates.length} template{templates.length !== 1 ? 's' : ''}</p>
+        </div>
+
+        <div className="grid gap-3">
+          {templates.map((template) => (
+            <div
+              key={template.id}
+              onClick={() => handleTemplateClick(template)}
+              className="card cursor-pointer hover:border-primary-500/50 transition-all"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3 flex-1">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl border ${typeColors[template.workout_type]}`}>
+                    {typeIcons[template.workout_type]}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-semibold text-text-primary">{template.name}</h4>
+                      {template.is_favorite && <span className="text-yellow-400">⭐</span>}
+                    </div>
+                    {template.description && (
+                      <p className="text-sm text-text-tertiary mt-1">{template.description}</p>
+                    )}
+
+                    {/* Workout Details */}
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-text-secondary">
+                      {template.workout_type === 'run' && (
+                        <>
+                          {template.run_duration_minutes && (
+                            <span className="flex items-center gap-1">
+                              ⏱️ {template.run_duration_minutes} min
+                            </span>
+                          )}
+                          {template.run_distance_km && (
+                            <span className="flex items-center gap-1">
+                              📏 {template.run_distance_km} km
+                            </span>
+                          )}
+                          {template.run_intensity && (
+                            <span className="flex items-center gap-1">
+                              🔥 {template.run_intensity}
+                            </span>
+                          )}
+                          {template.run_target_rpe && (
+                            <span className="flex items-center gap-1">
+                              💯 RPE {template.run_target_rpe}
+                            </span>
+                          )}
+                        </>
+                      )}
+                      {template.workout_type === 'strength' && template.exercises && (
+                        <span className="flex items-center gap-1">
+                          🏋️ {template.exercises.length} exercise{template.exercises.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Exercise List for Strength */}
+                    {template.workout_type === 'strength' && template.exercises && template.exercises.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {template.exercises.slice(0, 3).map((ex, idx) => (
+                          <div key={idx} className="text-xs text-text-tertiary">
+                            {ex.exercise_name} • {ex.sets} sets × {ex.reps}
+                          </div>
+                        ))}
+                        {template.exercises.length > 3 && (
+                          <div className="text-xs text-text-tertiary">
+                            +{template.exercises.length - 3} more exercise{template.exercises.length - 3 !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => handleEdit(template, e)}
+                    className="p-2 rounded-lg text-primary-400 hover:bg-primary-500/10 transition-colors"
+                    title="Edit template"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => handleDelete(template.id!, template.name, e)}
+                    className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                    title="Delete template"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                  <div className="text-2xl text-text-tertiary self-center">
+                    →
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Schedule Dialog */}
+      {showScheduleDialog && selectedTemplate && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-surface rounded-xl max-w-md w-full p-6">
+            <h3 className="text-2xl font-bold text-text-primary mb-4">Schedule Workout</h3>
+
+            <div className="mb-6 p-4 bg-surface-elevated rounded-lg">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">{typeIcons[selectedTemplate.workout_type]}</span>
+                <div>
+                  <p className="font-semibold text-text-primary">{selectedTemplate.name}</p>
+                  <p className="text-sm text-text-tertiary capitalize">{selectedTemplate.workout_type} workout</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Workout Date
+              </label>
+              <input
+                type="date"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                className="form-input w-full"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowScheduleDialog(false);
+                  setSelectedTemplate(null);
+                }}
+                className="btn-secondary flex-1"
+                disabled={scheduling}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSchedule}
+                className="btn-primary flex-1"
+                disabled={scheduling || !scheduleDate}
+              >
+                {scheduling ? 'Scheduling...' : 'Schedule Workout'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Dialog */}
+      {showEditDialog && editingTemplate && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-surface rounded-xl max-w-md w-full p-6">
+            <h3 className="text-2xl font-bold text-text-primary mb-4">Edit Template</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Template Name *
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="form-input w-full"
+                placeholder="e.g., Upper Body Push Day"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Description (optional)
+              </label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                className="form-input w-full h-24 resize-none"
+                placeholder="Describe this workout template..."
+              />
+            </div>
+
+            <div className="text-sm text-text-tertiary mb-6 p-3 bg-surface-elevated rounded-lg">
+              <p className="font-medium text-text-secondary mb-1">Note:</p>
+              <p>To edit exercises, delete this template and create a new one with the desired exercises.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowEditDialog(false);
+                  setEditingTemplate(null);
+                }}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="btn-primary flex-1"
+                disabled={!editName.trim()}
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
