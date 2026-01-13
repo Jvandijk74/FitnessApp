@@ -25,7 +25,7 @@ export default async function NutritionPage() {
   }
 
   // Get today's planned workouts
-  let plannedWorkouts = [];
+  let plannedWorkouts: any[] = [];
   try {
     plannedWorkouts = await getPlannedWorkouts(DEMO_USER, today);
   } catch (error) {
