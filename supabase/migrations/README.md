@@ -2,8 +2,25 @@
 
 This directory contains SQL migration files for the FitnessApp database.
 
-## Latest Migration: 006_nutrition_tables.sql
+## Latest Migrations
 
+### 007_nutrition_products.sql (Product-Based Logging)
+This migration transforms nutrition logging from meal-based to product-based tracking with OpenFoodFacts integration.
+
+**What it does:**
+1. Renames `meal_name` column to `name` for generic use
+2. Adds product tracking fields:
+   - `product_name` - Full product name
+   - `product_brand` - Brand information
+   - `barcode` - Product barcode/EAN
+   - `serving_size` - Portion size (e.g., 1.5)
+   - `serving_unit` - Unit of measurement (e.g., "100g", "serving")
+   - `openfoodfacts_id` - Reference to OpenFoodFacts database
+3. Adds indexes for faster barcode and product lookups
+
+**Run this after** 006_nutrition_tables.sql
+
+### 006_nutrition_tables.sql (Initial Nutrition Setup)
 This migration adds the nutrition tracking functionality to the application.
 
 ### What it does:
