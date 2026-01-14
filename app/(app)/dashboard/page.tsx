@@ -1,6 +1,9 @@
 import { InsightFeed } from '@/components/insights/InsightFeed';
 import { StatsCard } from '@/components/stats/StatsCard';
 import { WeeklyTrainingPlan } from '@/components/dashboard/WeeklyTrainingPlan';
+import { QuickNutritionInput } from '@/components/dashboard/QuickNutritionInput';
+import { AICoachChat } from '@/components/dashboard/AICoachChat';
+import { PersonalizedRecommendations } from '@/components/dashboard/PersonalizedRecommendations';
 import { getWeeklyStats, calculateHealthMetrics, generateInsights } from '@/app/actions/metrics';
 import { assessInjuryRisk } from '@/app/actions/training-plan';
 
@@ -123,6 +126,12 @@ export default async function DashboardPage() {
       {/* Weekly Training Plan */}
       <WeeklyTrainingPlan userId={DEMO_USER} />
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <QuickNutritionInput userId={DEMO_USER} date={new Date().toISOString().split('T')[0]} />
+        <AICoachChat userId={DEMO_USER} />
+      </div>
+
       {/* Insights Feed */}
       <InsightFeed
         insights={[
@@ -141,6 +150,9 @@ export default async function DashboardPage() {
             : []),
         ]}
       />
+
+      {/* Personalized Recommendations */}
+      <PersonalizedRecommendations userId={DEMO_USER} />
     </section>
   );
 }
