@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface NavTile {
@@ -71,8 +71,16 @@ const navTiles: NavTile[] = [
   },
 ];
 
+interface LactateThresholds {
+  lt1HR: number;
+  lt2HR: number;
+  lt1Pace: number;
+  lt2Pace: number;
+}
+
 export default function HomePage() {
   const router = useRouter();
+  const [thresholds, setThresholds] = useState<LactateThresholds | null>(null);
 
   // Redirect to dashboard on desktop
   useEffect(() => {
@@ -86,6 +94,23 @@ export default function HomePage() {
     window.addEventListener('resize', checkScreenSize);
     return () => window.removeEventListener('resize', checkScreenSize);
   }, [router]);
+
+  // Fetch lactate thresholds
+  useEffect(() => {
+    const fetchThresholds = async () => {
+      try {
+        const response = await fetch('/api/metrics/thresholds');
+        if (response.ok) {
+          const data = await response.json();
+          setThresholds(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch thresholds:', error);
+      }
+    };
+
+    fetchThresholds();
+  }, []);
 
   return (
     <div className="lg:hidden min-h-screen bg-background">
@@ -152,12 +177,16 @@ export default function HomePage() {
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-3 pt-4 border-t border-surface-elevated">
             <div className="text-center">
-              <p className="text-xs text-text-tertiary mb-1">Threshold</p>
-              <p className="text-sm font-semibold text-text-primary">4:54/km</p>
+              <p className="text-xs text-text-tertiary mb-1">LT1</p>
+              <p className="text-sm font-semibold text-text-primary">
+                {thresholds ? `${thresholds.lt1HR} bpm` : '...'}
+              </p>
             </div>
             <div className="text-center">
-              <p className="text-xs text-text-tertiary mb-1">Heart Rate</p>
-              <p className="text-sm font-semibold text-text-primary">170 bpm</p>
+              <p className="text-xs text-text-tertiary mb-1">LT2</p>
+              <p className="text-sm font-semibold text-text-primary">
+                {thresholds ? `${thresholds.lt2HR} bpm` : '...'}
+              </p>
             </div>
             <div className="text-center">
               <p className="text-xs text-text-tertiary mb-1">Readiness</p>

@@ -1,7 +1,8 @@
 import { StatsCard } from '@/components/stats/StatsCard';
-import { getMonthlyAnalytics, calculateHealthMetrics } from '@/app/actions/metrics';
+import { getMonthlyAnalytics, calculateHealthMetrics, calculateRacePaces, calculateLactateThresholds } from '@/app/actions/metrics';
 import { AIAnalysis } from '@/components/analytics/AIAnalysis';
 import { ProgressionMetricsDisplay } from '@/components/analytics/ProgressionMetrics';
+import { RacePacesAndThresholds } from '@/components/analytics/RacePacesAndThresholds';
 
 const DEMO_USER = 'demo-user';
 
@@ -9,6 +10,8 @@ export default async function AnalyticsPage() {
   // Fetch real data from database
   const analytics = await getMonthlyAnalytics(DEMO_USER);
   const healthMetrics = await calculateHealthMetrics(DEMO_USER);
+  const racePaces = await calculateRacePaces(DEMO_USER);
+  const lactateThresholds = await calculateLactateThresholds(DEMO_USER);
 
   const { weeklyData, weeklyStats, totals, insights } = analytics;
 
@@ -165,6 +168,9 @@ export default async function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Race Paces and Lactate Thresholds */}
+      <RacePacesAndThresholds racePaces={racePaces} lactateThresholds={lactateThresholds} />
 
       {/* Additional Metrics - 3 New Charts */}
       <div className="grid lg:grid-cols-3 gap-6">

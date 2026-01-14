@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 
 interface NavItem {
   name: string;
@@ -20,8 +21,35 @@ const navItems: NavItem[] = [
   { name: 'Settings', href: '/settings', icon: '⚙️' },
 ];
 
+interface LactateThresholds {
+  lt1HR: number;
+  lt2HR: number;
+  lt1Pace: number;
+  lt2Pace: number;
+  explanation: string;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
+  const [thresholds, setThresholds] = useState<LactateThresholds | null>(null);
+  const [hoveredMetric, setHoveredMetric] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch lactate thresholds
+    const fetchThresholds = async () => {
+      try {
+        const response = await fetch('/api/metrics/thresholds');
+        if (response.ok) {
+          const data = await response.json();
+          setThresholds(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch thresholds:', error);
+      }
+    };
+
+    fetchThresholds();
+  }, []);
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 bg-surface border-r border-surface-elevated">
@@ -69,14 +97,26 @@ export function Sidebar() {
         </div>
 
         {/* Athlete Stats */}
-        <div className="mt-3 pt-3 border-t border-surface space-y-2">
-          <div className="flex justify-between text-xs">
-            <span className="text-text-tertiary">Threshold Pace</span>
-            <span className="text-text-secondary font-medium">4:54 /km</span>
+        <div className="mt-3 pt-3 border-t border-surface space-y-2 relative">
+          <div
+            className="flex justify-between text-xs cursor-help hover:bg-surface-elevated/50 -mx-2 px-2 py-1 rounded transition-colors"
+            onMouseEnter={() => setHoveredMetric('lt1')}
+            onMouseLeave={() => setHoveredMetric(null)}
+          >
+            <span className="text-text-tertiary">LT1 (Aerobic)</span>
+            <span className="text-text-secondary font-medium">
+              {thresholds ? `${thresholds.lt1HR} bpm` : '... bpm'}
+            </span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-text-tertiary">Threshold HR</span>
-            <span className="text-text-secondary font-medium">170 bpm</span>
+          <div
+            className="flex justify-between text-xs cursor-help hover:bg-surface-elevated/50 -mx-2 px-2 py-1 rounded transition-colors"
+            onMouseEnter={() => setHoveredMetric('lt2')}
+            onMouseLeave={() => setHoveredMetric(null)}
+          >
+            <span className="text-text-tertiary">LT2 (Threshold)</span>
+            <span className="text-text-secondary font-medium">
+              {thresholds ? `${thresholds.lt2HR} bpm` : '... bpm'}
+            </span>
           </div>
           <div className="flex justify-between text-xs">
             <span className="text-text-tertiary">Readiness</span>
@@ -94,6 +134,23 @@ export function Sidebar() {
               <span className="text-text-secondary font-medium ml-1">62%</span>
             </div>
           </div>
+
+          {/* Hover Tooltip */}
+          {hoveredMetric && thresholds && (
+            <div className="absolute z-50 w-64 p-3 bg-surface-elevated border-2 border-primary-500/30 rounded-lg shadow-2xl left-full ml-2 top-0">
+              <h4 className="font-semibold text-text-primary text-xs mb-2">
+                {hoveredMetric === 'lt1' ? 'LT1 - Aerobic Threshold' : 'LT2 - Lactate Threshold'}
+              </h4>
+              <p className="text-xs text-text-secondary leading-relaxed mb-2">
+                {hoveredMetric === 'lt1'
+                  ? `${thresholds.lt1HR} bpm | ${Math.floor(thresholds.lt1Pace)}:${String(Math.round((thresholds.lt1Pace % 1) * 60)).padStart(2, '0')}/km - Your aerobic threshold where you can maintain conversation. Train below this for base building.`
+                  : `${thresholds.lt2HR} bpm | ${Math.floor(thresholds.lt2Pace)}:${String(Math.round((thresholds.lt2Pace % 1) * 60)).padStart(2, '0')}/km - Your lactate threshold pace. Tempo runs target this "comfortably hard" effort.`}
+              </p>
+              <p className="text-xs text-text-tertiary border-t border-surface pt-2 mt-2">
+                💡 Based on your training data
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </aside>

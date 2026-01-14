@@ -282,6 +282,272 @@ export async function getMonthlyAnalytics(userId: string) {
   }
 }
 
+export interface RacePaceEstimates {
+  pace5k: number; // min/km
+  pace10k: number;
+  paceHalfMarathon: number;
+  paceMarathon: number;
+  basedOnDistance: number; // The distance used for calculation
+  confidence: 'high' | 'medium' | 'low';
+  explanation: string;
+}
+
+export interface LactateThresholds {
+  lt1Pace: number; // min/km - Aerobic threshold
+  lt1HR: number; // bpm
+  lt2Pace: number; // min/km - Anaerobic/Lactate threshold
+  lt2HR: number; // bpm
+  maxHR: number; // Estimated or actual max HR
+  confidence: 'high' | 'medium' | 'low';
+  explanation: string;
+}
+
+/**
+ * Calculate estimated race paces using Riegel's formula and recent training data
+ * Formula: T2 = T1 × (D2/D1)^1.06
+ */
+export async function calculateRacePaces(userId: string): Promise<RacePaceEstimates> {
+  try {
+    const supabase = await getServerSupabase();
+
+    // Get last 60 days of runs to find best performances
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    const { data: runs, error } = await supabase
+      .from('run_logged')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('activity_date', sixtyDaysAgo.toISOString())
+      .order('activity_date', { ascending: false });
+
+    if (error || !runs || runs.length === 0) {
+      return {
+        pace5k: 0,
+        pace10k: 0,
+        paceHalfMarathon: 0,
+        paceMarathon: 0,
+        basedOnDistance: 0,
+        confidence: 'low',
+        explanation: 'Insufficient training data. Complete more runs to get accurate estimates.',
+      };
+    }
+
+    // Find best recent performances at different distances
+    const runsWithPace = runs.filter(r => r.distance_km > 3 && r.duration_minutes > 0);
+
+    if (runsWithPace.length === 0) {
+      return {
+        pace5k: 0,
+        pace10k: 0,
+        paceHalfMarathon: 0,
+        paceMarathon: 0,
+        basedOnDistance: 0,
+        confidence: 'low',
+        explanation: 'No runs over 3km found. Complete longer runs for accurate predictions.',
+      };
+    }
+
+    // Calculate pace for each run and find best performances
+    const runsByDistance = runsWithPace.map(r => ({
+      distance: r.distance_km,
+      pace: r.duration_minutes / r.distance_km,
+      duration: r.duration_minutes,
+    }));
+
+    // Find best pace (fastest) for distances close to common race distances
+    const findBestPace = (targetDistance: number, tolerance: number) => {
+      const relevantRuns = runsByDistance.filter(r =>
+        Math.abs(r.distance - targetDistance) <= tolerance
+      );
+      if (relevantRuns.length === 0) return null;
+      return relevantRuns.reduce((best, run) => run.pace < best.pace ? run : best);
+    };
+
+    // Try to find actual race data
+    let baseRun = findBestPace(5, 1.5) || findBestPace(10, 2) || findBestPace(21.1, 3);
+
+    // If no race-specific data, use best pace from any run
+    if (!baseRun) {
+      baseRun = runsByDistance.reduce((best, run) => run.pace < best.pace ? run : best);
+    }
+
+    const basePace = baseRun.pace;
+    const baseDistance = baseRun.distance;
+
+    // Riegel's formula: T2 = T1 × (D2/D1)^1.06
+    const calculatePaceForDistance = (targetDistance: number) => {
+      const ratio = Math.pow(targetDistance / baseDistance, 1.06);
+      return basePace * ratio;
+    };
+
+    const pace5k = calculatePaceForDistance(5);
+    const pace10k = calculatePaceForDistance(10);
+    const paceHalfMarathon = calculatePaceForDistance(21.0975);
+    const paceMarathon = calculatePaceForDistance(42.195);
+
+    // Determine confidence based on data quality
+    let confidence: 'high' | 'medium' | 'low' = 'medium';
+    if (runsWithPace.length >= 10 && baseDistance >= 8) {
+      confidence = 'high';
+    } else if (runsWithPace.length < 5 || baseDistance < 5) {
+      confidence = 'low';
+    }
+
+    const explanation = `Calculated using Riegel's formula (T2 = T1 × (D2/D1)^1.06) based on your best ${baseDistance.toFixed(1)}km performance at ${Math.floor(basePace)}:${String(Math.round((basePace % 1) * 60)).padStart(2, '0')}/km pace from the last 60 days. ${runsWithPace.length} qualifying runs analyzed.`;
+
+    return {
+      pace5k,
+      pace10k,
+      paceHalfMarathon,
+      paceMarathon,
+      basedOnDistance: baseDistance,
+      confidence,
+      explanation,
+    };
+  } catch (error) {
+    console.error('[Metrics] Error calculating race paces:', error);
+    return {
+      pace5k: 0,
+      pace10k: 0,
+      paceHalfMarathon: 0,
+      paceMarathon: 0,
+      basedOnDistance: 0,
+      confidence: 'low',
+      explanation: 'Unable to calculate race paces. Please ensure you have logged recent runs.',
+    };
+  }
+}
+
+/**
+ * Calculate lactate thresholds (LT1 and LT2) from heart rate data
+ */
+export async function calculateLactateThresholds(userId: string): Promise<LactateThresholds> {
+  try {
+    const supabase = await getServerSupabase();
+
+    // Get user age for max HR estimation
+    const { data: user } = await supabase
+      .from('users')
+      .select('age')
+      .eq('id', userId)
+      .single();
+
+    const age = user?.age || 30;
+    const estimatedMaxHR = 220 - age;
+
+    // Get last 60 days of runs with HR data
+    const sixtyDaysAgo = new Date();
+    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+    const { data: runs, error } = await supabase
+      .from('run_logged')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('activity_date', sixtyDaysAgo.toISOString())
+      .order('activity_date', { ascending: false });
+
+    if (error || !runs || runs.length === 0) {
+      return {
+        lt1Pace: 0,
+        lt1HR: Math.round(estimatedMaxHR * 0.72),
+        lt2Pace: 0,
+        lt2HR: Math.round(estimatedMaxHR * 0.87),
+        maxHR: estimatedMaxHR,
+        confidence: 'low',
+        explanation: 'Estimated from age-based max HR formula (220 - age). Complete runs with heart rate data for personalized thresholds.',
+      };
+    }
+
+    // Find actual max HR from data
+    const runsWithHR = runs.filter(r => r.avg_hr && r.max_hr);
+    const actualMaxHR = runsWithHR.length > 0
+      ? Math.max(...runsWithHR.map(r => r.max_hr))
+      : estimatedMaxHR;
+
+    // Use actual max if significantly different from estimate
+    const maxHR = actualMaxHR > estimatedMaxHR * 0.9 ? actualMaxHR : estimatedMaxHR;
+
+    // Calculate threshold estimates
+    // LT1 (Aerobic Threshold): ~70-75% of max HR
+    // LT2 (Anaerobic Threshold): ~85-90% of max HR
+    const lt1HR = Math.round(maxHR * 0.72);
+    const lt2HR = Math.round(maxHR * 0.87);
+
+    // Find runs near threshold HR to estimate threshold pace
+    const findThresholdPace = (targetHR: number, tolerance: number) => {
+      const thresholdRuns = runsWithHR.filter(r =>
+        r.avg_hr >= targetHR - tolerance &&
+        r.avg_hr <= targetHR + tolerance &&
+        r.distance_km > 3 &&
+        r.duration_minutes > 0
+      );
+
+      if (thresholdRuns.length === 0) return 0;
+
+      // Average pace of runs at this HR
+      const avgPace = thresholdRuns.reduce((sum, r) =>
+        sum + (r.duration_minutes / r.distance_km), 0
+      ) / thresholdRuns.length;
+
+      return avgPace;
+    };
+
+    let lt1Pace = findThresholdPace(lt1HR, 5);
+    let lt2Pace = findThresholdPace(lt2HR, 5);
+
+    // If no data at threshold HR, estimate from average pace
+    if (lt1Pace === 0 || lt2Pace === 0) {
+      const allPaces = runsWithHR
+        .filter(r => r.distance_km > 3 && r.duration_minutes > 0)
+        .map(r => r.duration_minutes / r.distance_km);
+
+      if (allPaces.length > 0) {
+        const avgPace = allPaces.reduce((a, b) => a + b, 0) / allPaces.length;
+        // LT1 is typically 10-15% slower than average training pace
+        // LT2 is typically 5-8% slower than average training pace
+        if (lt1Pace === 0) lt1Pace = avgPace * 1.12;
+        if (lt2Pace === 0) lt2Pace = avgPace * 1.06;
+      }
+    }
+
+    // Determine confidence
+    let confidence: 'high' | 'medium' | 'low' = 'medium';
+    const hrRunCount = runsWithHR.length;
+    const hasActualMax = actualMaxHR > estimatedMaxHR * 0.9;
+
+    if (hrRunCount >= 15 && hasActualMax) {
+      confidence = 'high';
+    } else if (hrRunCount < 5) {
+      confidence = 'low';
+    }
+
+    const explanation = `${hasActualMax ? 'Calculated from your actual max HR of ' + maxHR + ' bpm' : 'Estimated using age-based formula (220 - ' + age + ' = ' + maxHR + ' bpm)'}. LT1 (aerobic threshold) at ${Math.round((lt1HR/maxHR)*100)}% max HR, LT2 (lactate threshold) at ${Math.round((lt2HR/maxHR)*100)}% max HR. Based on ${hrRunCount} runs with heart rate data from the last 60 days.`;
+
+    return {
+      lt1Pace,
+      lt1HR,
+      lt2Pace,
+      lt2HR,
+      maxHR,
+      confidence,
+      explanation,
+    };
+  } catch (error) {
+    console.error('[Metrics] Error calculating lactate thresholds:', error);
+    const estimatedMaxHR = 220 - 30; // Default age 30
+    return {
+      lt1Pace: 0,
+      lt1HR: Math.round(estimatedMaxHR * 0.72),
+      lt2Pace: 0,
+      lt2HR: Math.round(estimatedMaxHR * 0.87),
+      maxHR: estimatedMaxHR,
+      confidence: 'low',
+      explanation: 'Unable to calculate thresholds. Log runs with heart rate data for personalized estimates.',
+    };
+  }
+}
+
 export async function generateInsights(userId: string) {
   try {
     console.log('[Metrics] Generating insights for user:', userId);
