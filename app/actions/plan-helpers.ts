@@ -67,12 +67,15 @@ export async function getWeekWorkouts(
     const activeTemplate = await getActiveTemplate(userId, startDate);
     console.log('[Plan Helpers] Active template:', activeTemplate ? activeTemplate.name : 'None');
 
-    // Create a map of scheduled workouts by day
-    const scheduledByDay = new Map<string, ScheduledWorkout>();
+    // Create a map of scheduled workouts by day (supports multiple workouts per day)
+    const scheduledByDay = new Map<string, ScheduledWorkout[]>();
     scheduledWorkouts.forEach(workout => {
       const dayOfWeek = getDayOfWeek(workout.workout_date);
       console.log('[Plan Helpers] Mapping', workout.name, 'to', dayOfWeek);
-      scheduledByDay.set(dayOfWeek, workout);
+      if (!scheduledByDay.has(dayOfWeek)) {
+        scheduledByDay.set(dayOfWeek, []);
+      }
+      scheduledByDay.get(dayOfWeek)!.push(workout);
     });
 
     // Create combined workouts array in Monday-Sunday order
@@ -85,14 +88,17 @@ export async function getWeekWorkouts(
       // dates array is already in Monday-Sunday order, so just use index directly
       const dateForDay = dates[index];
 
-      // Check if there's a scheduled workout for this day
+      // Check if there are scheduled workouts for this day
       if (scheduledByDay.has(dayOfWeek)) {
-        const scheduledWorkout = scheduledByDay.get(dayOfWeek)!;
-        combined.push({
-          day: dateForDay,
-          day_of_week: dayOfWeek,
-          source: 'scheduled',
-          workout: scheduledWorkout
+        const scheduledWorkouts = scheduledByDay.get(dayOfWeek)!;
+        // Add all scheduled workouts for this day
+        scheduledWorkouts.forEach(scheduledWorkout => {
+          combined.push({
+            day: dateForDay,
+            day_of_week: dayOfWeek,
+            source: 'scheduled',
+            workout: scheduledWorkout
+          });
         });
       }
       // Otherwise, check if there's a template workout
