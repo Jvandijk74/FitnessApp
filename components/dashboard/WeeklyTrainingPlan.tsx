@@ -171,6 +171,22 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
     );
   }
 
+  // Group workouts by day
+  const workoutsByDay = workouts.reduce((acc, workout) => {
+    const key = `${workout.day_of_week}-${workout.day}`;
+    if (!acc[key]) {
+      acc[key] = {
+        day_of_week: workout.day_of_week,
+        day: workout.day,
+        workouts: []
+      };
+    }
+    acc[key].workouts.push(workout);
+    return acc;
+  }, {} as Record<string, { day_of_week: string; day: string; workouts: CombinedDayWorkout[] }>);
+
+  const groupedDays = Object.values(workoutsByDay);
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -196,148 +212,171 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
           className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {workouts.map((combinedWorkout) => {
-            const isScheduled = combinedWorkout.source === 'scheduled';
-            const scheduledWorkout = isScheduled ? (combinedWorkout.workout as ScheduledWorkout) : null;
-            const templateDay = !isScheduled ? (combinedWorkout.workout as TemplateDay) : null;
-
-            const workoutType = isScheduled ? scheduledWorkout!.workout_type : templateDay!.type;
-            const workoutName = isScheduled ? scheduledWorkout!.name : '';
-            const exercises = isScheduled ? scheduledWorkout!.exercises : templateDay!.exercises;
-            const isCompleted = isScheduled ? scheduledWorkout!.completed : false;
-
-            // Check if this is today
+          {groupedDays.map((dayGroup) => {
             const today = new Date().toISOString().split('T')[0];
-            const isToday = combinedWorkout.day === today;
-
-            // Run details (only available for scheduled workouts)
-            const runDuration = isScheduled ? scheduledWorkout!.run_duration_minutes : undefined;
-            const runDistance = isScheduled ? scheduledWorkout!.run_distance_km : undefined;
-            const runIntensity = isScheduled ? scheduledWorkout!.run_intensity : undefined;
-            const runRpe = isScheduled ? scheduledWorkout!.run_target_rpe : undefined;
-            const runPace = isScheduled ? scheduledWorkout!.run_target_pace : undefined;
+            const isToday = dayGroup.day === today;
 
             return (
               <div
-                key={combinedWorkout.day}
+                key={dayGroup.day}
                 className="flex-none w-72 snap-start relative"
               >
-                <Link
-                  href="/plan"
-                  className="block h-full"
-                >
-                  <div className={`h-full p-5 rounded-xl border-2 transition-all hover:border-primary-500/50 cursor-pointer ${
-                    isToday ? 'bg-primary-500/5 border-primary-500/30' : typeColors[workoutType]
-                  }`}>
-                    {/* Day Header */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
-                          {dayAbbrev[combinedWorkout.day_of_week]}
-                        </div>
-                        <div className="text-lg font-bold text-text-primary mt-0.5">
-                          {dayLabels[combinedWorkout.day_of_week]}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="text-3xl">
-                          {typeIcons[workoutType]}
-                        </div>
-                        {isScheduled && !isCompleted && scheduledWorkout && (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDeleteWorkout(scheduledWorkout.id!, scheduledWorkout.name);
-                            }}
-                            className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors"
-                            title="Delete workout"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                  {/* Workout Content */}
-                  <div className="space-y-3">
-                    {/* Workout Title */}
+                <div className={`h-full p-5 rounded-xl border-2 transition-all ${
+                  isToday ? 'bg-primary-500/5 border-primary-500/30' : 'bg-surface-elevated/50 border-surface-elevated'
+                }`}>
+                  {/* Day Header */}
+                  <div className="flex items-center justify-between mb-4">
                     <div>
-                      <h3 className={`font-bold text-lg ${
-                        workoutType === 'strength' ? 'text-accent-400' :
-                        workoutType === 'run' ? 'text-primary-400' :
-                        'text-text-secondary'
-                      }`}>
-                        {workoutName || (workoutType === 'strength' ? 'Strength' : workoutType === 'run' ? 'Easy Run' : 'Rest day')}
-                      </h3>
-                      {workoutType === 'rest' && (
-                        <p className="text-sm text-text-tertiary mt-1">
-                          Recovery
-                        </p>
-                      )}
+                      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
+                        {dayAbbrev[dayGroup.day_of_week as keyof typeof dayAbbrev]}
+                      </div>
+                      <div className="text-lg font-bold text-text-primary mt-0.5">
+                        {dayLabels[dayGroup.day_of_week as keyof typeof dayLabels]}
+                      </div>
                     </div>
-
-                    {/* Run Details */}
-                    {workoutType === 'run' && (
-                      <div className="text-sm text-text-secondary space-y-1">
-                        {runDuration && (
-                          <p>{runDuration} min • RPE {runRpe || 6}</p>
-                        )}
-                        {runDistance && (
-                          <p>{runDistance} km</p>
-                        )}
-                        {runIntensity && (
-                          <p className="text-text-tertiary capitalize">{runIntensity}</p>
-                        )}
-                        {runPace && (
-                          <p className="text-text-tertiary">Target: {runPace}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Strength Exercises */}
-                    {workoutType === 'strength' && exercises && exercises.length > 0 && (
-                      <div className="space-y-2">
-                        {exercises.slice(0, 3).map((ex: any, i: number) => (
-                          <div key={i} className="text-sm">
-                            <p className="font-medium text-text-primary">{ex.exercise_name}</p>
-                            <p className="text-text-tertiary text-xs">
-                              {ex.sets}×{ex.reps}
-                            </p>
+                    <div className="flex items-center gap-1">
+                      {dayGroup.workouts.map(combinedWorkout => {
+                        const isScheduled = combinedWorkout.source === 'scheduled';
+                        const scheduledWorkout = isScheduled ? (combinedWorkout.workout as ScheduledWorkout) : null;
+                        const templateDay = !isScheduled ? (combinedWorkout.workout as TemplateDay) : null;
+                        const workoutType = isScheduled ? scheduledWorkout!.workout_type : templateDay!.type;
+                        return (
+                          <div key={isScheduled ? scheduledWorkout!.id : templateDay!.id} className="text-2xl">
+                            {typeIcons[workoutType]}
                           </div>
-                        ))}
-                        {exercises.length > 3 && (
-                          <p className="text-xs text-text-tertiary italic">
-                            +{exercises.length - 3} more exercises
-                          </p>
-                        )}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                    {/* Status */}
-                    {isCompleted && (
-                      <div className="pt-2 border-t border-surface-elevated">
-                        <span className="text-xs text-semantic-success flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          Completed
-                        </span>
-                      </div>
-                    )}
+                  {/* Workouts for this day - stacked vertically */}
+                  <div className="space-y-4">
+                    {dayGroup.workouts.map((combinedWorkout) => {
+                      const isScheduled = combinedWorkout.source === 'scheduled';
+                      const scheduledWorkout = isScheduled ? (combinedWorkout.workout as ScheduledWorkout) : null;
+                      const templateDay = !isScheduled ? (combinedWorkout.workout as TemplateDay) : null;
+
+                      const workoutType = isScheduled ? scheduledWorkout!.workout_type : templateDay!.type;
+                      const workoutName = isScheduled ? scheduledWorkout!.name : '';
+                      const exercises = isScheduled ? scheduledWorkout!.exercises : templateDay!.exercises;
+                      const isCompleted = isScheduled ? scheduledWorkout!.completed : false;
+
+                      // Run details (only available for scheduled workouts)
+                      const runDuration = isScheduled ? scheduledWorkout!.run_duration_minutes : undefined;
+                      const runDistance = isScheduled ? scheduledWorkout!.run_distance_km : undefined;
+                      const runIntensity = isScheduled ? scheduledWorkout!.run_intensity : undefined;
+                      const runRpe = isScheduled ? scheduledWorkout!.run_target_rpe : undefined;
+                      const runPace = isScheduled ? scheduledWorkout!.run_target_pace : undefined;
+
+                      return (
+                        <Link
+                          key={isScheduled ? scheduledWorkout!.id : templateDay!.id}
+                          href="/plan"
+                          className="block"
+                        >
+                          <div className={`p-4 rounded-lg border transition-all hover:border-primary-500/50 cursor-pointer ${typeColors[workoutType]}`}>
+                            {/* Workout Header */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <div className="text-xl">
+                                  {typeIcons[workoutType]}
+                                </div>
+                                <h3 className={`font-bold text-base ${
+                                  workoutType === 'strength' ? 'text-accent-400' :
+                                  workoutType === 'run' ? 'text-primary-400' :
+                                  'text-text-secondary'
+                                }`}>
+                                  {workoutName || (workoutType === 'strength' ? 'Strength' : workoutType === 'run' ? 'Run' : 'Rest')}
+                                </h3>
+                              </div>
+                              {isScheduled && !isCompleted && scheduledWorkout && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDeleteWorkout(scheduledWorkout.id!, scheduledWorkout.name);
+                                  }}
+                                  className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-colors"
+                                  title="Delete workout"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Workout Content */}
+                            <div className="space-y-2">
+                              {workoutType === 'rest' && (
+                                <p className="text-sm text-text-tertiary">
+                                  Recovery
+                                </p>
+                              )}
+
+                              {/* Run Details */}
+                              {workoutType === 'run' && (
+                                <div className="text-sm text-text-secondary space-y-1">
+                                  {runDuration && (
+                                    <p>{runDuration} min • RPE {runRpe || 6}</p>
+                                  )}
+                                  {runDistance && (
+                                    <p>{runDistance} km</p>
+                                  )}
+                                  {runIntensity && (
+                                    <p className="text-text-tertiary capitalize">{runIntensity}</p>
+                                  )}
+                                  {runPace && (
+                                    <p className="text-text-tertiary">Target: {runPace}</p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Strength Exercises */}
+                              {workoutType === 'strength' && exercises && exercises.length > 0 && (
+                                <div className="space-y-2">
+                                  {exercises.slice(0, 3).map((ex: any, i: number) => (
+                                    <div key={i} className="text-sm">
+                                      <p className="font-medium text-text-primary">{ex.exercise_name}</p>
+                                      <p className="text-text-tertiary text-xs">
+                                        {ex.sets}×{ex.reps}
+                                      </p>
+                                    </div>
+                                  ))}
+                                  {exercises.length > 3 && (
+                                    <p className="text-xs text-text-tertiary italic">
+                                      +{exercises.length - 3} more exercises
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Status */}
+                              {isCompleted && (
+                                <div className="pt-2 border-t border-surface-elevated">
+                                  <span className="text-xs text-semantic-success flex items-center gap-1">
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    Completed
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
-              </Link>
-            </div>
+              </div>
             );
           })}
         </div>
 
         {/* Scroll indicator dots */}
         <div className="flex justify-center gap-2 mt-3">
-          {workouts.map((_, index) => (
+          {groupedDays.map((_, index) => (
             <button
               key={index}
               onClick={() => {
@@ -345,7 +384,7 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
                 if (container) {
                   const scrollWidth = container.scrollWidth;
                   const containerWidth = container.clientWidth;
-                  const scrollPosition = (scrollWidth / workouts.length) * index;
+                  const scrollPosition = (scrollWidth / groupedDays.length) * index;
                   container.scrollTo({ left: scrollPosition, behavior: 'smooth' });
                 }
               }}
