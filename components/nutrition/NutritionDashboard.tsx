@@ -5,6 +5,7 @@ import { NutritionLog } from '@/lib/db/types';
 import { logMeal, deleteMeal } from '@/app/actions/nutrition';
 import { useRouter } from 'next/navigation';
 import { ProductSearch } from './ProductSearch';
+import { FoodImageCapture } from './FoodImageCapture';
 import { SimplifiedProduct } from '@/lib/nutrition/openfoodfacts';
 
 interface NutritionDashboardProps {
@@ -30,6 +31,7 @@ interface NutritionDashboardProps {
 export function NutritionDashboard({ userId, date, requirements, summary, plannedWorkouts = [] }: NutritionDashboardProps) {
   const router = useRouter();
   const [isAddingProduct, setIsAddingProduct] = useState(false);
+  const [isScanningFood, setIsScanningFood] = useState(false);
   const [defaultMealType, setDefaultMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>('breakfast');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -281,13 +283,37 @@ export function NutritionDashboard({ userId, date, requirements, summary, planne
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-text-primary">Today's Food Log</h3>
-          <button
-            onClick={() => setIsAddingProduct(!isAddingProduct)}
-            className="btn-primary text-sm"
-          >
-            {isAddingProduct ? 'Cancel' : '+ Add Food'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setIsScanningFood(!isScanningFood);
+                setIsAddingProduct(false);
+              }}
+              className="btn-secondary text-sm flex items-center gap-1"
+            >
+              📸 Scan Food
+            </button>
+            <button
+              onClick={() => {
+                setIsAddingProduct(!isAddingProduct);
+                setIsScanningFood(false);
+              }}
+              className="btn-primary text-sm"
+            >
+              {isAddingProduct ? 'Cancel' : '+ Add Food'}
+            </button>
+          </div>
         </div>
+
+        {/* Scan Food Modal */}
+        {isScanningFood && (
+          <FoodImageCapture
+            userId={userId}
+            onFoodDetected={handleAddProduct}
+            onCancel={() => setIsScanningFood(false)}
+            defaultMealType={defaultMealType}
+          />
+        )}
 
         {/* Add Product Form */}
         {isAddingProduct && (
