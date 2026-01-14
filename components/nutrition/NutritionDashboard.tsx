@@ -39,30 +39,43 @@ export function NutritionDashboard({ userId, date, requirements, summary, planne
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
 
   const handleAddProduct = async (product: SimplifiedProduct & { meal_type: string; quantity: number }) => {
+    console.log('[NutritionDashboard] 📥 Received product to log:', product);
     setIsSubmitting(true);
 
     try {
-      await logMeal({
+      const mealData = {
         user_id: userId,
         log_date: date,
         meal_type: product.meal_type as 'breakfast' | 'lunch' | 'dinner' | 'snack',
         name: product.name,
         product_name: product.name,
         product_brand: product.brand,
-        barcode: product.barcode,
+        barcode: product.barcode || undefined,
         serving_size: product.quantity,
         serving_unit: product.servingSize || 'serving',
-        openfoodfacts_id: product.barcode,
+        openfoodfacts_id: product.barcode || undefined,
         calories: Math.round(product.calories * product.quantity),
         protein_grams: Math.round(product.protein * product.quantity * 10) / 10,
         carbs_grams: Math.round(product.carbs * product.quantity * 10) / 10,
         fat_grams: Math.round(product.fat * product.quantity * 10) / 10,
-      });
+      };
 
-      setIsAddingProduct(false);
-      router.refresh();
+      console.log('[NutritionDashboard] 📤 Sending meal data:', mealData);
+
+      const result = await logMeal(mealData);
+
+      if (result) {
+        console.log('[NutritionDashboard] ✅ Product logged successfully');
+        setIsAddingProduct(false);
+        setIsScanningFood(false);
+        router.refresh();
+      } else {
+        console.error('[NutritionDashboard] ❌ Failed to log product - logMeal returned null');
+        alert('Failed to log food. Please check the console for details.');
+      }
     } catch (error) {
-      console.error('Error logging product:', error);
+      console.error('[NutritionDashboard] ❌ Error logging product:', error);
+      alert('Error logging food. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

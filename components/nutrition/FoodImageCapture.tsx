@@ -120,22 +120,24 @@ export function FoodImageCapture({ userId, onFoodDetected, onCancel, defaultMeal
   const handleConfirm = () => {
     if (!analysis) return;
 
+    console.log('[FoodImageCapture] 🔍 Confirming food analysis:', analysis);
+
     // Convert the analysis to the expected format
-    const product: SimplifiedProduct & { meal_type: string; quantity: number; servingUnit: string } = {
-      barcode: '',
+    const product: SimplifiedProduct & { meal_type: string; quantity: number } = {
+      barcode: '', // Empty barcode for AI-detected food
       name: analysis.foodItems.map(item => item.name).join(', '),
       brand: 'AI Estimated',
       calories: analysis.totalCalories,
       protein: analysis.totalProtein,
       carbs: analysis.totalCarbs,
       fat: analysis.totalFat,
-      servingSize: '1 serving',
-      servingUnit: 'serving',
+      servingSize: 'serving', // Just the unit, not '1 serving'
       imageUrl: undefined,
       meal_type: mealType,
       quantity: 1,
     };
 
+    console.log('[FoodImageCapture] 📤 Sending product to handleAddProduct:', product);
     onFoodDetected(product);
   };
 

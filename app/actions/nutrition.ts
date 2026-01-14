@@ -241,6 +241,8 @@ export async function setNutritionGoals(
  * Log a meal
  */
 export async function logMeal(meal: Omit<NutritionLog, 'id' | 'created_at'>): Promise<NutritionLog | null> {
+  console.log('[logMeal] 📝 Attempting to log meal:', JSON.stringify(meal, null, 2));
+
   const supabase = await getServerSupabase();
 
   const { data, error } = await supabase
@@ -250,10 +252,18 @@ export async function logMeal(meal: Omit<NutritionLog, 'id' | 'created_at'>): Pr
     .single();
 
   if (error) {
-    console.error('Error logging meal:', error);
+    console.error('[logMeal] ❌ Error logging meal:', error);
+    console.error('[logMeal] Error details:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    console.error('[logMeal] Meal data that failed:', JSON.stringify(meal, null, 2));
     return null;
   }
 
+  console.log('[logMeal] ✅ Meal logged successfully:', data.id);
   return data;
 }
 
