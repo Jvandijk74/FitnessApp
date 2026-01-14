@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,43 +12,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize Anthropic client
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    // Initialize Google Gemini client
+    const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      console.error('ANTHROPIC_API_KEY is not set');
+      console.error('GOOGLE_API_KEY is not set');
       return NextResponse.json(
         { error: 'AI service not configured' },
         { status: 500 }
       );
     }
 
-    const anthropic = new Anthropic({
-      apiKey: apiKey,
-    });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Extract base64 data from data URL
     const base64Data = image.split(',')[1];
-    const mediaType = image.split(';')[0].split(':')[1];
+    const mimeType = image.split(';')[0].split(':')[1];
 
-    // Call Claude Vision API
-    const message = await anthropic.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 1024,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-                data: base64Data,
-              },
-            },
-            {
-              type: 'text',
-              text: `Analyze this food image and provide nutritional information. Identify all food items visible and estimate their quantities and nutritional content.
+    // Prepare the prompt
+    const prompt = `Analyze this food image and provide nutritional information. Identify all food items visible and estimate their quantities and nutritional content.
 
 Return your response in this exact JSON format (no markdown, just raw JSON):
 {
@@ -69,15 +51,21 @@ Return your response in this exact JSON format (no markdown, just raw JSON):
   "totalFat": <sum of all fat>
 }
 
-Be specific with food names. If you see multiple items, list each separately. Provide realistic portion size estimates based on visual appearance.`,
-            },
-          ],
-        },
-      ],
-    });
+Be specific with food names. If you see multiple items, list each separately. Provide realistic portion size estimates based on visual appearance.`;
 
-    // Extract the response text
-    const responseText = message.content[0].type === 'text' ? message.content[0].text : '';
+    // Call Gemini Vision API
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType,
+        },
+      },
+    ]);
+
+    const response = await result.response;
+    const responseText = response.text();
 
     // Parse the JSON response
     let analysis;

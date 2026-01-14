@@ -10,7 +10,7 @@
     "db:reset": "node scripts/reset-db.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.71.2",
+    "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "@types/leaflet": "^1.9.21",

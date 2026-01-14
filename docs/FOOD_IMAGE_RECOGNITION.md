@@ -1,6 +1,6 @@
 # AI Food Image Recognition
 
-This feature allows users to take photos of their meals and automatically estimate calories and macronutrients using AI vision technology.
+This feature allows users to take photos of their meals and automatically estimate calories and macronutrients using AI vision technology powered by **Google Gemini (FREE)**.
 
 ## Features
 
@@ -10,6 +10,7 @@ This feature allows users to take photos of their meals and automatically estima
 - 📊 **Multi-Item Detection**: Recognizes multiple food items in a single image
 - 🎯 **Meal Type Selection**: Categorize by breakfast, lunch, dinner, or snack
 - ✅ **One-Click Logging**: Instantly log detected nutrition to your daily tracker
+- 💰 **FREE**: Uses Google Gemini's generous free tier
 
 ## How It Works
 
@@ -22,11 +23,11 @@ This feature allows users to take photos of their meals and automatically estima
 
 2. **API Endpoint** (`/api/nutrition/analyze-food-image`):
    - Receives the image (base64 encoded)
-   - Sends to Claude Vision API (Anthropic)
+   - Sends to Google Gemini Vision API
    - Processes AI response and returns structured nutrition data
 
 3. **AI Vision Processing**:
-   - Uses Claude 3.5 Sonnet model with vision capabilities
+   - Uses Google Gemini 1.5 Flash model with vision capabilities
    - Analyzes the image to identify food items
    - Estimates portion sizes based on visual appearance
    - Calculates nutritional values for each item
@@ -73,22 +74,32 @@ User takes photo → FoodImageCapture component
 
 ## Setup Requirements
 
-### 1. Anthropic API Key
+### 1. Google API Key (FREE)
 
-You must have an Anthropic API key set in your environment variables:
+You must have a Google API key set in your environment variables:
 
 ```bash
-ANTHROPIC_API_KEY=your_api_key_here
+GOOGLE_API_KEY=your_api_key_here
 ```
 
-Get your API key from: https://console.anthropic.com/
+**Get your FREE API key:**
+1. Go to https://aistudio.google.com/app/apikey
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy the key and add it to your `.env` file
+
+**Free Tier Limits:**
+- 15 requests per minute
+- 1 million tokens per day
+- 1,500 requests per day
+- More than enough for personal use!
 
 ### 2. Dependencies
 
 The following npm package is required:
 
 ```bash
-npm install @anthropic-ai/sdk
+npm install @google/generative-ai
 ```
 
 Already installed in this project.
@@ -124,9 +135,10 @@ You can also use the quick "+ Add" buttons for each meal type, which will:
 
 ### AI Model
 
-- **Model**: Claude 3.5 Sonnet (`claude-3-5-sonnet-20241022`)
-- **Max Tokens**: 1024 (for response)
+- **Model**: Google Gemini 1.5 Flash (`gemini-1.5-flash`)
+- **Cost**: FREE (within generous limits)
 - **Vision Capabilities**: Analyzes food composition, portion sizes, and visual characteristics
+- **Performance**: Fast response times (typically 2-5 seconds)
 
 ### Accuracy Considerations
 
@@ -176,17 +188,26 @@ AI estimates may vary based on:
 
 ## Cost Considerations
 
-Each image analysis uses:
-- **Input**: ~1,000-1,500 tokens (for the image)
-- **Output**: ~200-500 tokens (for the structured response)
+### 💰 FREE! (with limits)
 
-At current Claude API pricing:
-- Cost per analysis: ~$0.01-0.03 USD
+Each image analysis uses tokens, but Google Gemini offers a **generous free tier**:
 
-For high-volume usage, consider:
-- Implementing usage limits
-- Caching similar images
-- Adding user quotas
+**Free Tier Limits:**
+- 15 requests per minute
+- 1 million tokens per day
+- 1,500 requests per day
+
+**Cost per analysis:** $0.00 (FREE within limits)
+
+**For most users**, the free tier is more than sufficient:
+- 15 food scans per minute = ~900 scans per hour
+- 1,500 scans per day = 45,000 scans per month
+- Even power users won't hit these limits!
+
+**If you exceed free tier**, Gemini pricing is very affordable:
+- Input: $0.075 per million tokens
+- Output: $0.30 per million tokens
+- ~$0.001-0.002 per food scan (less than a penny)
 
 ## Future Enhancements
 
@@ -209,8 +230,8 @@ Potential improvements:
 ### Analysis Fails
 - **Issue**: "Failed to analyze food"
 - **Possible Causes**:
-  - ANTHROPIC_API_KEY not set
-  - API quota exceeded
+  - GOOGLE_API_KEY not set
+  - API quota exceeded (unlikely with free tier)
   - Network connectivity issues
   - Invalid image format
 - **Solution**: Check server logs for detailed error messages
@@ -225,13 +246,15 @@ Potential improvements:
 
 ## Privacy & Security
 
-- Images are sent to Anthropic's API for processing
+- Images are sent to Google's Gemini API for processing
 - Images are NOT stored permanently (only base64 in memory)
 - No images are saved to the database
-- Anthropic's data usage policy applies: https://www.anthropic.com/legal/privacy
+- Google's data usage policy applies: https://policies.google.com/privacy
+- Google states: "When you use Gemini API, Google doesn't use your prompts or responses to train our models"
 
 ## References
 
 - Inspired by: [FoodCalorieEstimation](https://github.com/Nikhilchakravarthy1303/FoodCalorieEstimation)
-- Claude Vision API: https://docs.anthropic.com/claude/docs/vision
-- Anthropic SDK: https://www.npmjs.com/package/@anthropic-ai/sdk
+- Google Gemini API: https://ai.google.dev/gemini-api/docs/vision
+- Gemini SDK: https://www.npmjs.com/package/@google/generative-ai
+- Get Free API Key: https://aistudio.google.com/app/apikey
