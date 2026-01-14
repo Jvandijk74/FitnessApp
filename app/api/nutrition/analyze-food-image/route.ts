@@ -23,7 +23,8 @@ export async function POST(request: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // Use gemini-2.5-flash (current model) or gemini-flash-latest (auto-updates)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     // Extract base64 data from data URL
     const base64Data = image.split(',')[1];

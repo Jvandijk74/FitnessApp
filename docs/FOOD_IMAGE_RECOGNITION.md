@@ -27,7 +27,7 @@ This feature allows users to take photos of their meals and automatically estima
    - Processes AI response and returns structured nutrition data
 
 3. **AI Vision Processing**:
-   - Uses Google Gemini 1.5 Flash model with vision capabilities
+   - Uses Google Gemini 2.5 Flash model with vision capabilities
    - Analyzes the image to identify food items
    - Estimates portion sizes based on visual appearance
    - Calculates nutritional values for each item
@@ -135,10 +135,11 @@ You can also use the quick "+ Add" buttons for each meal type, which will:
 
 ### AI Model
 
-- **Model**: Google Gemini 1.5 Flash (`gemini-1.5-flash`)
+- **Model**: Google Gemini 2.5 Flash (`gemini-2.5-flash`)
 - **Cost**: FREE (within generous limits)
 - **Vision Capabilities**: Analyzes food composition, portion sizes, and visual characteristics
 - **Performance**: Fast response times (typically 2-5 seconds)
+- **Note**: Gemini 1.5 models were retired; now using the latest 2.5 generation
 
 ### Accuracy Considerations
 
