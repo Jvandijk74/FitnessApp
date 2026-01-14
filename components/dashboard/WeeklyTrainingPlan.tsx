@@ -317,17 +317,46 @@ export function WeeklyTrainingPlan({ userId }: WeeklyTrainingPlanProps) {
                               {/* Run Details */}
                               {workoutType === 'run' && (
                                 <div className="text-sm text-text-secondary space-y-1">
-                                  {runDuration && (
-                                    <p>{runDuration} min • RPE {runRpe || 6}</p>
-                                  )}
-                                  {runDistance && (
-                                    <p>{runDistance} km</p>
-                                  )}
-                                  {runIntensity && (
-                                    <p className="text-text-tertiary capitalize">{runIntensity}</p>
-                                  )}
-                                  {runPace && (
-                                    <p className="text-text-tertiary">Target: {runPace}</p>
+                                  {/* Show actual performance if linked run exists */}
+                                  {isScheduled && scheduledWorkout!.linked_run ? (
+                                    <>
+                                      <div className="font-semibold text-primary-400 mb-1">
+                                        ✓ Completed
+                                      </div>
+                                      <p>
+                                        <span className="text-text-primary font-medium">{scheduledWorkout!.linked_run.distance_km} km</span> in {scheduledWorkout!.linked_run.duration_minutes} min
+                                      </p>
+                                      <p>
+                                        Pace: <span className="text-text-primary font-medium">
+                                          {Math.floor(scheduledWorkout!.linked_run.duration_minutes / scheduledWorkout!.linked_run.distance_km)}:
+                                          {String(Math.round(((scheduledWorkout!.linked_run.duration_minutes / scheduledWorkout!.linked_run.distance_km) % 1) * 60)).padStart(2, '0')}/km
+                                        </span>
+                                      </p>
+                                      {scheduledWorkout!.linked_run.avg_hr && (
+                                        <p>Avg HR: <span className="text-text-primary font-medium">{scheduledWorkout!.linked_run.avg_hr} bpm</span></p>
+                                      )}
+                                      {scheduledWorkout!.linked_run.strava_activity_id && (
+                                        <p className="text-xs text-text-tertiary">
+                                          Synced from Strava
+                                        </p>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Show planned workout details */}
+                                      {runDuration && (
+                                        <p>{runDuration} min • RPE {runRpe || 6}</p>
+                                      )}
+                                      {runDistance && (
+                                        <p>{runDistance} km</p>
+                                      )}
+                                      {runIntensity && (
+                                        <p className="text-text-tertiary capitalize">{runIntensity}</p>
+                                      )}
+                                      {runPace && (
+                                        <p className="text-text-tertiary">Target: {runPace}</p>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               )}

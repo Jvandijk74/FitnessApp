@@ -20,6 +20,16 @@ export interface ScheduledWorkoutExercise {
   completed?: boolean;
 }
 
+export interface LinkedRun {
+  id: string;
+  distance_km: number;
+  duration_minutes: number;
+  avg_hr?: number;
+  max_hr?: number;
+  activity_date: string;
+  strava_activity_id?: string;
+}
+
 export interface ScheduledWorkout {
   id?: string;
   user_id: string;
@@ -37,6 +47,7 @@ export interface ScheduledWorkout {
   completed_at?: string;
   ai_feedback?: string;
   exercises?: ScheduledWorkoutExercise[];
+  linked_run?: LinkedRun; // Actual run data from Strava/manual log
 }
 
 export interface DayTemplate {
@@ -224,10 +235,13 @@ export async function getScheduledWorkouts(userId: string, startDate: string, en
       }
     }
 
-    // Fetch exercises for each workout
-    console.log('[getScheduledWorkouts] Fetching exercises for strength workouts...');
-    const workoutsWithExercises = await Promise.all(
+    // Fetch exercises and linked runs for each workout
+    console.log('[getScheduledWorkouts] Fetching exercises and linked runs...');
+    const workoutsWithDetails = await Promise.all(
       (workouts || []).map(async (workout) => {
+        const details: any = { ...workout };
+
+        // Fetch exercises for strength workouts
         if (workout.workout_type === 'strength') {
           const { data: exercises } = await supabase
             .from('scheduled_workout_exercises')
@@ -236,16 +250,31 @@ export async function getScheduledWorkouts(userId: string, startDate: string, en
             .order('order_index');
 
           console.log(`[getScheduledWorkouts] Workout "${workout.name}" has ${exercises?.length || 0} exercises`);
-          return { ...workout, exercises: exercises || [] };
+          details.exercises = exercises || [];
         }
-        return workout;
+
+        // Fetch linked run data for run workouts
+        if (workout.workout_type === 'run' && workout.completed) {
+          const { data: linkedRun } = await supabase
+            .from('run_logged')
+            .select('id, distance_km, duration_minutes, avg_hr, max_hr, activity_date, strava_activity_id')
+            .eq('scheduled_workout_id', workout.id)
+            .single();
+
+          if (linkedRun) {
+            console.log(`[getScheduledWorkouts] Workout "${workout.name}" has linked run: ${linkedRun.distance_km}km in ${linkedRun.duration_minutes}min`);
+            details.linked_run = linkedRun;
+          }
+        }
+
+        return details;
       })
     );
 
     console.log('[getScheduledWorkouts] ===== COMPLETE =====');
-    console.log('[getScheduledWorkouts] Returning', workoutsWithExercises.length, 'workouts');
+    console.log('[getScheduledWorkouts] Returning', workoutsWithDetails.length, 'workouts');
 
-    return workoutsWithExercises;
+    return workoutsWithDetails;
   } catch (error) {
     console.error('[getScheduledWorkouts] ===== EXCEPTION =====');
     console.error('[getScheduledWorkouts] Exception:', error);

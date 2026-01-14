@@ -13,6 +13,93 @@ interface StravaRun {
   start_date: string;
 }
 
+/**
+ * Match a logged run to a scheduled workout based on date and workout characteristics
+ * Returns the scheduled_workout_id if a good match is found, otherwise null
+ */
+async function matchRunToScheduledWorkout(
+  userId: string,
+  activityDate: string,
+  distanceKm: number,
+  durationMinutes: number,
+  supabase: any
+): Promise<string | null> {
+  try {
+    // Convert activity date to just the date part (YYYY-MM-DD)
+    const runDate = new Date(activityDate).toISOString().split('T')[0];
+
+    // Find all scheduled run workouts for this date
+    const { data: scheduledWorkouts, error } = await supabase
+      .from('scheduled_workouts')
+      .select('id, run_distance_km, run_duration_minutes, name')
+      .eq('user_id', userId)
+      .eq('workout_date', runDate)
+      .eq('workout_type', 'run')
+      .eq('completed', false); // Only match to uncompleted workouts
+
+    if (error || !scheduledWorkouts || scheduledWorkouts.length === 0) {
+      return null;
+    }
+
+    // Find the best matching workout based on distance/duration similarity
+    let bestMatch: { id: string; score: number } | null = null;
+
+    for (const workout of scheduledWorkouts) {
+      let score = 0;
+      let totalWeight = 0;
+
+      // Compare distance if planned workout has distance
+      if (workout.run_distance_km) {
+        const distanceDiff = Math.abs(distanceKm - Number(workout.run_distance_km));
+        const distanceTolerance = Number(workout.run_distance_km) * 0.2; // 20% tolerance
+
+        if (distanceDiff <= distanceTolerance) {
+          // Score based on how close it is (closer = higher score)
+          const distanceScore = 100 * (1 - distanceDiff / distanceTolerance);
+          score += distanceScore * 2; // Weight distance more heavily
+          totalWeight += 2;
+        }
+      }
+
+      // Compare duration if planned workout has duration
+      if (workout.run_duration_minutes) {
+        const durationDiff = Math.abs(durationMinutes - Number(workout.run_duration_minutes));
+        const durationTolerance = Number(workout.run_duration_minutes) * 0.25; // 25% tolerance
+
+        if (durationDiff <= durationTolerance) {
+          const durationScore = 100 * (1 - durationDiff / durationTolerance);
+          score += durationScore;
+          totalWeight += 1;
+        }
+      }
+
+      // If no planned distance/duration, give a base score (any run matches)
+      if (!workout.run_distance_km && !workout.run_duration_minutes) {
+        score = 50;
+        totalWeight = 1;
+      }
+
+      // Calculate weighted average score
+      const finalScore = totalWeight > 0 ? score / totalWeight : 0;
+
+      // Update best match if this is better and score is above threshold
+      if (finalScore >= 50 && (!bestMatch || finalScore > bestMatch.score)) {
+        bestMatch = { id: workout.id, score: finalScore };
+      }
+    }
+
+    if (bestMatch) {
+      console.log(`[Strava Matching] Matched run (${distanceKm}km, ${durationMinutes}min) to scheduled workout ${bestMatch.id} with score ${bestMatch.score.toFixed(1)}`);
+      return bestMatch.id;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Strava Matching] Error matching run to scheduled workout:', error);
+    return null;
+  }
+}
+
 export async function getStravaConnection(userId: string) {
   try {
     console.log('[Strava Actions] Getting Strava connection for user:', userId);
@@ -106,20 +193,37 @@ export async function syncStravaActivities(userId: string) {
       }
     }
 
-    // Import runs to the database
-    const runLogs = runs.map((run: StravaRun) => ({
-      user_id: userId,
-      day: new Date(run.start_date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as any,
-      distance_km: run.distance_km,
-      duration_minutes: run.duration_minutes,
-      avg_hr: run.avg_hr ? Math.round(run.avg_hr) : undefined,
-      max_hr: run.max_hr ? Math.round(run.max_hr) : undefined,
-      activity_date: run.start_date,
-      strava_activity_id: run.id.toString(),
-      source: 'strava' as const
-    }));
+    // Import runs to the database - first match to scheduled workouts, then insert
+    console.log('[Strava Actions] Matching runs to scheduled workouts...');
 
-    console.log('[Strava Actions] Prepared', runLogs.length, 'run logs for import');
+    const runLogsWithMatching = await Promise.all(
+      runs.map(async (run: StravaRun) => {
+        const scheduledWorkoutId = await matchRunToScheduledWorkout(
+          userId,
+          run.start_date,
+          run.distance_km,
+          run.duration_minutes,
+          supabase
+        );
+
+        return {
+          user_id: userId,
+          day: new Date(run.start_date).toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() as any,
+          distance_km: run.distance_km,
+          duration_minutes: run.duration_minutes,
+          avg_hr: run.avg_hr ? Math.round(run.avg_hr) : undefined,
+          max_hr: run.max_hr ? Math.round(run.max_hr) : undefined,
+          activity_date: run.start_date,
+          strava_activity_id: run.id.toString(),
+          source: 'strava' as const,
+          scheduled_workout_id: scheduledWorkoutId
+        };
+      })
+    );
+
+    const runLogs = runLogsWithMatching;
+    const matchedCount = runLogs.filter(log => log.scheduled_workout_id).length;
+    console.log('[Strava Actions] Prepared', runLogs.length, 'run logs for import,', matchedCount, 'matched to scheduled workouts');
 
     if (runLogs.length > 0) {
       try {
@@ -143,6 +247,24 @@ export async function syncStravaActivities(userId: string) {
           }
           console.log('[Strava Actions] Successfully inserted', newRunLogs.length, 'new runs into database');
           console.log('[Strava Actions] Skipped', runLogs.length - newRunLogs.length, 'duplicate runs');
+
+          // Mark matched scheduled workouts as completed
+          const linkedWorkoutIds = newRunLogs
+            .filter(log => log.scheduled_workout_id)
+            .map(log => log.scheduled_workout_id);
+
+          if (linkedWorkoutIds.length > 0) {
+            const { error: updateError } = await supabase
+              .from('scheduled_workouts')
+              .update({ completed: true, completed_at: new Date().toISOString() })
+              .in('id', linkedWorkoutIds);
+
+            if (updateError) {
+              console.error('[Strava Actions] Failed to mark workouts as completed:', updateError);
+            } else {
+              console.log('[Strava Actions] Marked', linkedWorkoutIds.length, 'scheduled workouts as completed');
+            }
+          }
         } else {
           console.log('[Strava Actions] All runs already exist in database');
         }
