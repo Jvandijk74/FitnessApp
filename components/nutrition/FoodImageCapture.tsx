@@ -10,16 +10,18 @@ interface FoodImageCaptureProps {
   defaultMealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
 }
 
+interface FoodItem {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  servingSize: string;
+  confidence: string;
+}
+
 interface FoodAnalysis {
-  foodItems: {
-    name: string;
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-    servingSize: string;
-    confidence: string;
-  }[];
+  foodItems: FoodItem[];
   totalCalories: number;
   totalProtein: number;
   totalCarbs: number;
@@ -31,6 +33,7 @@ export function FoodImageCapture({ userId, onFoodDetected, onCancel, defaultMeal
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analysis, setAnalysis] = useState<FoodAnalysis | null>(null);
+  const [editableFoodItems, setEditableFoodItems] = useState<FoodItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [mealType, setMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack'>(defaultMealType);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +113,7 @@ export function FoodImageCapture({ userId, onFoodDetected, onCancel, defaultMeal
 
       const data: FoodAnalysis = await response.json();
       setAnalysis(data);
+      setEditableFoodItems(data.foodItems);
     } catch (err) {
       setError('Failed to analyze food. Please try again or enter manually.');
       console.error('Analysis error:', err);
@@ -118,21 +122,40 @@ export function FoodImageCapture({ userId, onFoodDetected, onCancel, defaultMeal
     }
   };
 
+  const updateFoodItem = (index: number, field: keyof FoodItem, value: string | number) => {
+    const updated = [...editableFoodItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditableFoodItems(updated);
+  };
+
+  const calculateTotals = () => {
+    return editableFoodItems.reduce(
+      (acc, item) => ({
+        calories: acc.calories + (Number(item.calories) || 0),
+        protein: acc.protein + (Number(item.protein) || 0),
+        carbs: acc.carbs + (Number(item.carbs) || 0),
+        fat: acc.fat + (Number(item.fat) || 0),
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    );
+  };
+
   const handleConfirm = () => {
     if (!analysis || isSubmitting) return;
 
-    console.log('[FoodImageCapture] 🔍 Confirming food analysis:', analysis);
+    const totals = calculateTotals();
+    console.log('[FoodImageCapture] 🔍 Confirming food analysis:', { editableFoodItems, totals });
     setIsSubmitting(true);
 
-    // Convert the analysis to the expected format
+    // Convert the analysis to the expected format using edited values
     const product: SimplifiedProduct & { meal_type: string; quantity: number } = {
       barcode: '', // Empty barcode for AI-detected food
-      name: analysis.foodItems.map(item => item.name).join(', '),
+      name: editableFoodItems.map(item => item.name).join(', '),
       brand: 'AI Estimated',
-      calories: analysis.totalCalories,
-      protein: analysis.totalProtein,
-      carbs: analysis.totalCarbs,
-      fat: analysis.totalFat,
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fat: totals.fat,
       servingSize: 'serving', // Just the unit, not '1 serving'
       imageUrl: undefined,
       meal_type: mealType,
@@ -146,6 +169,7 @@ export function FoodImageCapture({ userId, onFoodDetected, onCancel, defaultMeal
   const retake = () => {
     setImage(null);
     setAnalysis(null);
+    setEditableFoodItems([]);
     setError(null);
   };
 
@@ -280,63 +304,103 @@ export function FoodImageCapture({ userId, onFoodDetected, onCancel, defaultMeal
               <img src={image!} alt="Food" className="w-full rounded-lg max-h-48 object-cover" />
 
               <div className="p-4 bg-primary-500/10 border border-primary-500/20 rounded-lg">
-                <h3 className="font-semibold text-text-primary mb-3">AI Detection Results</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-text-primary">AI Detection Results</h3>
+                  <span className="text-xs text-text-tertiary">Tap values to edit</span>
+                </div>
 
-                {analysis.foodItems.map((item, index) => (
-                  <div key={index} className="mb-3 pb-3 border-b border-surface-elevated last:border-0 last:pb-0">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-medium text-text-primary">{item.name}</p>
-                        <p className="text-sm text-text-tertiary">{item.servingSize}</p>
+                {editableFoodItems.map((item, index) => (
+                  <div key={index} className="mb-4 pb-4 border-b border-surface-elevated last:border-0 last:pb-0">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => updateFoodItem(index, 'name', e.target.value)}
+                          className="font-medium text-text-primary bg-transparent border-b border-transparent hover:border-primary-500/50 focus:border-primary-500 focus:outline-none w-full mb-1"
+                        />
+                        <input
+                          type="text"
+                          value={item.servingSize}
+                          onChange={(e) => updateFoodItem(index, 'servingSize', e.target.value)}
+                          className="text-sm text-text-tertiary bg-transparent border-b border-transparent hover:border-primary-500/50 focus:border-primary-500 focus:outline-none w-full"
+                          placeholder="e.g., 1 cup, 100g"
+                        />
                       </div>
-                      <span className="text-xs bg-surface-elevated px-2 py-1 rounded">
+                      <span className="text-xs bg-surface-elevated px-2 py-1 rounded ml-2">
                         {item.confidence}
                       </span>
                     </div>
-                    <div className="grid grid-cols-4 gap-2 text-sm">
+                    <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <p className="text-text-tertiary text-xs">Calories</p>
-                        <p className="font-semibold text-text-primary">{item.calories}</p>
+                        <label className="text-text-tertiary text-xs block mb-1">Calories</label>
+                        <input
+                          type="number"
+                          value={item.calories}
+                          onChange={(e) => updateFoodItem(index, 'calories', Number(e.target.value))}
+                          className="w-full bg-surface-elevated border border-surface-elevated hover:border-primary-500/50 focus:border-primary-500 focus:outline-none rounded px-2 py-1.5 text-sm font-semibold text-text-primary"
+                        />
                       </div>
                       <div>
-                        <p className="text-text-tertiary text-xs">Protein</p>
-                        <p className="font-semibold text-text-primary">{item.protein}g</p>
+                        <label className="text-text-tertiary text-xs block mb-1">Protein (g)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={item.protein}
+                          onChange={(e) => updateFoodItem(index, 'protein', Number(e.target.value))}
+                          className="w-full bg-surface-elevated border border-surface-elevated hover:border-primary-500/50 focus:border-primary-500 focus:outline-none rounded px-2 py-1.5 text-sm font-semibold text-text-primary"
+                        />
                       </div>
                       <div>
-                        <p className="text-text-tertiary text-xs">Carbs</p>
-                        <p className="font-semibold text-text-primary">{item.carbs}g</p>
+                        <label className="text-text-tertiary text-xs block mb-1">Carbs (g)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={item.carbs}
+                          onChange={(e) => updateFoodItem(index, 'carbs', Number(e.target.value))}
+                          className="w-full bg-surface-elevated border border-surface-elevated hover:border-primary-500/50 focus:border-primary-500 focus:outline-none rounded px-2 py-1.5 text-sm font-semibold text-text-primary"
+                        />
                       </div>
                       <div>
-                        <p className="text-text-tertiary text-xs">Fat</p>
-                        <p className="font-semibold text-text-primary">{item.fat}g</p>
+                        <label className="text-text-tertiary text-xs block mb-1">Fat (g)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={item.fat}
+                          onChange={(e) => updateFoodItem(index, 'fat', Number(e.target.value))}
+                          className="w-full bg-surface-elevated border border-surface-elevated hover:border-primary-500/50 focus:border-primary-500 focus:outline-none rounded px-2 py-1.5 text-sm font-semibold text-text-primary"
+                        />
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {analysis.foodItems.length > 1 && (
-                  <div className="mt-3 pt-3 border-t border-primary-500/20">
-                    <p className="font-semibold text-text-primary mb-2">Total</p>
-                    <div className="grid grid-cols-4 gap-2 text-sm">
-                      <div>
-                        <p className="text-text-tertiary text-xs">Calories</p>
-                        <p className="font-bold text-primary-400">{analysis.totalCalories}</p>
-                      </div>
-                      <div>
-                        <p className="text-text-tertiary text-xs">Protein</p>
-                        <p className="font-bold text-primary-400">{analysis.totalProtein}g</p>
-                      </div>
-                      <div>
-                        <p className="text-text-tertiary text-xs">Carbs</p>
-                        <p className="font-bold text-primary-400">{analysis.totalCarbs}g</p>
-                      </div>
-                      <div>
-                        <p className="text-text-tertiary text-xs">Fat</p>
-                        <p className="font-bold text-primary-400">{analysis.totalFat}g</p>
+                {editableFoodItems.length > 1 && (() => {
+                  const totals = calculateTotals();
+                  return (
+                    <div className="mt-3 pt-3 border-t border-primary-500/20">
+                      <p className="font-semibold text-text-primary mb-2">Total</p>
+                      <div className="grid grid-cols-4 gap-2 text-sm">
+                        <div>
+                          <p className="text-text-tertiary text-xs">Calories</p>
+                          <p className="font-bold text-primary-400">{totals.calories}</p>
+                        </div>
+                        <div>
+                          <p className="text-text-tertiary text-xs">Protein</p>
+                          <p className="font-bold text-primary-400">{totals.protein.toFixed(1)}g</p>
+                        </div>
+                        <div>
+                          <p className="text-text-tertiary text-xs">Carbs</p>
+                          <p className="font-bold text-primary-400">{totals.carbs.toFixed(1)}g</p>
+                        </div>
+                        <div>
+                          <p className="text-text-tertiary text-xs">Fat</p>
+                          <p className="font-bold text-primary-400">{totals.fat.toFixed(1)}g</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Meal Type Selection */}
@@ -393,7 +457,7 @@ export function FoodImageCapture({ userId, onFoodDetected, onCancel, defaultMeal
               </div>
 
               <p className="text-xs text-text-tertiary text-center">
-                Note: AI estimates may not be 100% accurate. You can edit the entry after logging.
+                ✏️ Adjust portion sizes and nutrition values above before logging
               </p>
             </div>
           )}
